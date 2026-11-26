@@ -22,6 +22,11 @@
     data: null,
     activeTab: 'dashboard',
     portfolioSub: 'analysis',
+    selectedComboId: 'safe',
+    comboBudgetKrw: 3000000,
+    authorFilter: '전체',
+    authorNick: window.SimpleShare ? window.SimpleShare.loadNickname() : '나',
+    pendingShareData: null,
     category: '전체',
     lightFilter: 'all',
     searchQuery: '',
@@ -58,6 +63,7 @@
     if (cat === '대표지수') return 'cat-index';
     if (cat === '배당·인컴') return 'cat-div';
     if (cat === '기술·반도체') return 'cat-tech';
+    if (cat === '레버리지') return 'cat-lev';
     return 'cat-safe';
   }
 
@@ -354,7 +360,9 @@
     const { meta, overview, fx, macro } = state.data;
     $('#updatedLabel').textContent = meta.updatedLabel;
     $('#sourceModeBadge').textContent = meta.sourceMode === 'live' ? '실시간 반영됨' : '데일리 브리핑';
-    $('#heroHeadline').textContent = overview.headline || '오늘의 미국 ETF 투자 신호등을 확인하세요.';
+    $('#heroHeadline').textContent = overview.headline || '분할 매수 · 방어 우선';
+    const subEl = $('#heroSubline');
+    if (subEl) subEl.textContent = overview.subHeadline || '환율은 유리, 증시는 불안. 우량·배당부터 나눠 담으세요.';
 
     const cpiInd = macro.indicators.find((i) => i.id === 'cpi');
     const gdpInd = macro.indicators.find((i) => i.id === 'gdp');
@@ -470,37 +478,161 @@
       });
     });
 
-    // 목적별 빠른 선택 (3분류 퀵픽)
-    const picks = overview.quickPicks || [];
-    $('#quickPickGrid').innerHTML = picks
-      .map(
-        (p) => `
-      <div class="quick-pick-card">
-        <div class="qp-head">
-          <span class="qp-title"><i class="sdot ${p.light}"></i>${esc(p.title)}</span>
-          <span class="qp-note">${esc(p.note)}</span>
+    // 핵심 행동 3줄 (짧고 명확하게 + 종목 바로가기)
+    const actions = overview.todayActions || [
+      { tag: '환전', light: 'green', text: '1,343원 · 분할 환전 유리', tickers: ['SGOV'] },
+      { tag: '매수', light: 'green', text: '우량·배당 중심 나눠 담기', tickers: ['SPLG', 'SCHD', 'VT'] },
+      { tag: '주의', light: 'red', text: '3배 레버리지 추격 금지', tickers: ['SOXL', 'TQQQ', 'NRGU'] }
+    ];
+    const actEl = $('#todayActionList');
+    if (actEl) {
+      actEl.innerHTML = actions
+        .map(
+          (a) => `
+        <div class="today-action-row">
+          <div class="ta-left">
+            <span class="status-pill ${a.light}"><i class="sdot ${a.light}"></i>${esc(a.tag)}</span>
+            <span class="ta-text">${esc(a.text)}</span>
+          </div>
+          <div class="ta-chips">
+            ${(a.tickers || []).map((tk) => `<button class="etf-chip ${a.light === 'red' ? 'red-chip' : ''}" type="button" data-quick-etf="${tk}">${tk}</button>`).join('')}
+          </div>
         </div>
-        <div class="qp-chips">
-          ${p.tickers.map((tk) => `<button class="etf-chip ${p.light === 'red' ? 'red-chip' : ''}" type="button" data-quick-etf="${tk}">${tk}</button>`).join('')}
+      `
+        )
+        .join('');
+
+      $$('[data-quick-etf]', actEl).forEach((btn) => {
+        btn.addEventListener('click', () => openEtfDrawer(btn.dataset.quickEtf));
+      });
+    }
+  }
+
+  // ==================== 1-2. 추천 ETF & 성향별 포트폴리오 조합 (내 투자 > 추천 조합 탭) ====================
+  function renderRecommendationsInto(containerEl) {
+    const rec = state.data.overview?.recommendations;
+    if (!rec || !containerEl) return;
+
+    const fxRate = state.data.fx.usdKrw;
+    const etfMap = new Map(state.data.etfs.map((e) => [e.ticker, e]));
+    const portfolios = rec.portfolios || [];
+    const active = portfolios.find((p) => p.id === state.selectedComboId) || portfolios[0];
+    if (!active) return;
+
+    const colors = ['#3182f6', '#00c471', '#ff9f0a', '#8b5cf6', '#f04452'];
+    const budget = Math.max(0, Number(state.comboBudgetKrw) || 0);
+
+    containerEl.innerHTML = `
+      <div class="surface">
+        <div class="list-header" style="margin-bottom:14px;">
+          <div>
+            <h2 class="section-title">지금 장세 추천 ETF TOP 3</h2>
+            <p class="section-sub">환율·금리·유가를 고려해 지금 가장 무난한 핵심 종목 3가지예요</p>
+          </div>
+        </div>
+        <div class="top-picks-grid" style="margin-bottom:0;">
+          ${(rec.topPicks || [])
+            .map((p, idx) => {
+              const e = etfMap.get(p.ticker);
+              return `
+              <button class="top-pick-card" type="button" data-rec-etf="${p.ticker}">
+                <div class="tp-head">
+                  <span class="tp-rank">추천 ${idx + 1}</span>
+                  <span class="status-pill green">${esc(p.role)}</span>
+                </div>
+                <div class="tp-main num">
+                  <strong>${p.ticker}</strong>
+                  <span>${e ? fmtUsd(e.price) : ''}</span>
+                </div>
+                <div class="tp-name">${e ? esc(e.krName) : ''}</div>
+                <p class="tp-reason">${esc(p.reason)}</p>
+              </button>
+            `;
+            })
+            .join('')}
         </div>
       </div>
-    `
-      )
-      .join('');
 
-    $$('[data-quick-etf]').forEach((btn) => {
-      btn.addEventListener('click', () => openEtfDrawer(btn.dataset.quickEtf));
+      <div class="surface">
+        <div class="combo-head">
+          <div>
+            <h2 class="section-title">성향별 추천 운용 조합</h2>
+            <p class="section-sub">투자 예산을 입력하면 종목별 매수 금액이 자동으로 계산됩니다</p>
+          </div>
+          <div class="signal-seg" id="comboTabBtns">
+            ${portfolios
+              .map(
+                (p) => `<button class="seg-btn ${p.id === active.id ? 'active' : ''}" type="button" data-combo="${p.id}">${esc(p.name.split('·')[0].trim())}</button>`
+              )
+              .join('')}
+          </div>
+        </div>
+
+        <div class="combo-box" style="margin-top:12px;">
+          <div class="combo-meta-row">
+            <span class="status-pill ${active.light}"><i class="sdot ${active.light}"></i>${esc(active.name)}</span>
+            <span class="news-meta">예상 배당 <strong>${esc(active.expectedYield)}</strong> · 위험도 <strong>${esc(active.riskText)}</strong></span>
+          </div>
+          <p class="combo-desc">${esc(active.summary)}</p>
+
+          <div class="alloc-bar">
+            ${active.allocations.map((a, i) => `<div style="width:${a.pct}%; background:${colors[i % colors.length]};"></div>`).join('')}
+          </div>
+
+          <div class="combo-budget-row">
+            <label for="comboBudgetInput">내 투자 예산 (원)</label>
+            <input type="number" id="comboBudgetInput" step="any" min="100000" value="${budget}" />
+          </div>
+
+          <div class="combo-alloc-list num" id="comboAllocList"></div>
+        </div>
+      </div>
+    `;
+
+    $$('[data-rec-etf]', containerEl).forEach((b) => {
+      b.addEventListener('click', () => openEtfDrawer(b.dataset.recEtf));
     });
 
-    $('#dailyBriefingList').innerHTML = overview.dailyBriefing
-      .map((line) => {
-        const idx = line.indexOf(':');
-        if (idx > 0 && idx < 12) {
-          return `<li><span class="summary-tag">${esc(line.slice(0, idx))}</span><span>${esc(line.slice(idx + 1).trim())}</span></li>`;
-        }
-        return `<li><span>${esc(line)}</span></li>`;
-      })
-      .join('');
+    const renderAllocRows = (krwBudget) => {
+      $('#comboAllocList', containerEl).innerHTML = active.allocations
+        .map((a, i) => {
+          const e = etfMap.get(a.ticker);
+          const allocKrw = Math.round((krwBudget * a.pct) / 100);
+          const shares = e ? allocKrw / fxRate / e.price : 0;
+          return `
+          <div class="combo-alloc-row" data-combo-etf="${a.ticker}" role="button" tabindex="0">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+              <i class="sdot" style="background:${colors[i % colors.length]};"></i>
+              <strong>${a.ticker}</strong>
+              <span class="news-meta">${esc(a.role)}</span>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <strong>${a.pct}%</strong>
+              <span class="news-meta"> · ${fmtKrw(allocKrw)}${e ? ` (약 ${shares.toFixed(1)}주)` : ''}</span>
+            </div>
+          </div>
+        `;
+        })
+        .join('');
+
+      $$('[data-combo-etf]', containerEl).forEach((el) => {
+        el.addEventListener('click', () => openEtfDrawer(el.dataset.comboEtf));
+      });
+    };
+
+    renderAllocRows(budget);
+
+    $('#comboBudgetInput', containerEl).addEventListener('input', (ev) => {
+      state.comboBudgetKrw = Number(ev.target.value) || 0;
+      renderAllocRows(state.comboBudgetKrw);
+    });
+
+    $$('#comboTabBtns .seg-btn', containerEl).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.selectedComboId = btn.dataset.combo;
+        renderRecommendationsInto(containerEl);
+      });
+    });
   }
 
   // ==================== 2. 16종 ETF 리스트 (관심 ★ + 신호등) ====================
@@ -525,6 +657,8 @@
     const yld = (e) => parseFloat(String(e.dividendYield).replace('%', '')) || 0;
 
     list.sort((a, b) => {
+      if (state.sortBy === 'flowBuy') return (b.flowScore || 0) - (a.flowScore || 0);
+      if (state.sortBy === 'flowSell') return (a.flowScore || 0) - (b.flowScore || 0);
       if (state.sortBy === 'mdd') return a.mddFromHigh - b.mddFromHigh;
       if (state.sortBy === 'news') return posCnt(b) - posCnt(a);
       if (state.sortBy === 'yield') return yld(b) - yld(a);
@@ -551,6 +685,9 @@
         const pos = e.news.filter((n) => n.sentiment === 'positive').length;
         const neg = e.news.filter((n) => n.sentiment === 'negative').length;
         const isFav = state.favs.includes(e.ticker);
+        const fs = Number(e.flowScore) || 0;
+        const flowCls = fs >= 20 ? 'up' : fs <= -20 ? 'down' : '';
+        const flowTag = e.flowLabel || (fs >= 20 ? '순매수' : fs <= -20 ? '순매도' : '균형');
         return `
         <div class="etf-row" data-ticker="${e.ticker}" role="button" tabindex="0">
           <div class="etf-row-left">
@@ -563,6 +700,7 @@
               </div>
               <div class="etf-meta-line">
                 <span class="status-pill ${e.light} mobile-only-badge"><i class="sdot ${e.light}"></i>${esc(e.actionBadge)} ${e.score}</span>
+                <span class="flow-mini ${flowCls}">${esc(flowTag)}</span>
                 <span class="news-mini-stat">
                   <span><i class="sdot green"></i>호재 ${pos}</span>
                   <span><i class="sdot red"></i>악재 ${neg}</span>
@@ -742,8 +880,15 @@
 
         ${etf.compareTip ? `<div class="compare-tip"><strong>선택 팁</strong><span>${esc(etf.compareTip)}</span></div>` : ''}
 
-        <div class="explain-title" style="margin-top:16px;">왜 이 신호인가요? (5가지 핵심 체크)</div>
+        <div class="explain-title" style="margin-top:16px;">왜 이 신호인가요? (6가지 핵심 체크)</div>
         <div class="explain-rows">
+          <div class="explain-row">
+            <div class="explain-left">
+              <span class="explain-key">수급 흐름</span>
+              <span class="explain-fact">${esc(etf.flowLabel || '매수·매도 균형')} (수급 지수 ${etf.flowScore > 0 ? '+' : ''}${etf.flowScore || 0})</span>
+            </div>
+            <span class="status-pill ${(etf.flowScore || 0) >= 20 ? 'green' : (etf.flowScore || 0) <= -20 ? 'red' : 'yellow'}">${(etf.flowScore || 0) >= 20 ? '매수 우위' : (etf.flowScore || 0) <= -20 ? '매도 우위' : '균형'}</span>
+          </div>
           <div class="explain-row">
             <div class="explain-left">
               <span class="explain-key">가격 위치</span>
@@ -1087,7 +1232,7 @@
 
   // ==================== 5. 거시경제 (클릭 시 같은 탭에서 상세 그래프 · 뒤로가기 시 바로 복귀!) ====================
   function renderMacroTab() {
-    const { indicators, globalStory, geopolitics, globalSummary, globalNews, calendar } = state.data.macro;
+    const { indicators, treasuryGuide, globalStory, geopolitics, globalSummary, globalNews, calendar } = state.data.macro;
 
     $('#macroIndicatorsGrid').innerHTML = indicators
       .map(
@@ -1105,6 +1250,33 @@
     `
       )
       .join('');
+
+    // 장단기 미국 국채 비교 스트립 (초단기 SGOV · 단기 SHY · 중기 IEF · 장기 TLT)
+    const tStrip = $('#treasuryGuideStrip');
+    if (tStrip && Array.isArray(treasuryGuide)) {
+      tStrip.innerHTML = `
+        <div class="ts-title">미국 국채 만기별 한눈에 비교 (클릭 시 상세)</div>
+        <div class="ts-grid">
+          ${treasuryGuide
+            .map(
+              (t) => `
+            <button class="ts-card" type="button" data-ts-etf="${t.ticker}">
+              <div class="ts-head">
+                <span class="ts-term">${esc(t.term)}</span>
+                <strong class="ts-ticker">${t.ticker}</strong>
+              </div>
+              <div class="ts-meta num">배당 ${esc(t.yield)} · 위험 ${esc(t.risk)}</div>
+              <div class="ts-role">${esc(t.role)}</div>
+            </button>
+          `
+            )
+            .join('')}
+        </div>
+      `;
+      $$('[data-ts-etf]', tStrip).forEach((btn) => {
+        btn.addEventListener('click', () => openEtfDrawer(btn.dataset.tsEtf));
+      });
+    }
 
     // 지금 세계 경제 스토리 (4단계 인과 흐름)
     const storyEl = $('#globalStoryFlow');
@@ -1257,16 +1429,171 @@
     if (toggleBtn) toggleBtn.textContent = '전체 펼치기';
   }
 
-  // ==================== 6. 내 투자 (매수 일지 · 환전 일지 · 포트폴리오 자동 분석) ====================
-  function computePortfolioStats() {
+  // ==================== 6. 내 투자 (무인증 초간단 별명 · 카톡 공유 링크 합치기 · 멤버별 비교) ====================
+  function getCurrentAuthorName() {
+    return state.authorNick || '나';
+  }
+
+  function renderAuthorBadge(name) {
+    const label = name || '나';
+    const st = window.SimpleShare ? window.SimpleShare.getAuthorStyle(label) : { bg: '#e8f3ff', fg: '#1b64da' };
+    return `<span class="author-pill" style="background:${st.bg}; color:${st.fg};">${esc(label)}</span>`;
+  }
+
+  function getActiveFilteredLogs() {
+    const f = state.authorFilter;
+    const buyLogs = f === '전체' ? state.buyLogs : state.buyLogs.filter((x) => (x.author || '나') === f);
+    const fxLogs = f === '전체' ? state.fxLogs : state.fxLogs.filter((x) => (x.author || '나') === f);
+    return { buyLogs, fxLogs };
+  }
+
+  function getAllAuthors() {
+    const set = new Set();
+    for (const l of state.buyLogs) set.add(l.author || '나');
+    for (const l of state.fxLogs) set.add(l.author || '나');
+    return [...set];
+  }
+
+  async function handleCopyShareLink() {
+    if (!window.SimpleShare) return;
+    if (!state.buyLogs.length && !state.fxLogs.length) {
+      showToast('먼저 매수 또는 환전 기록을 1건 이상 추가해 주세요.');
+      return;
+    }
+    const token = await window.SimpleShare.encodeShareToken(getCurrentAuthorName(), state.buyLogs, state.fxLogs);
+    const base =
+      location.origin && location.protocol.startsWith('http')
+        ? `${location.origin}${location.pathname}`
+        : location.href.split('?')[0].split('#')[0];
+    const link = `${base}?tab=portfolio&share=${token}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast('공유 링크 복사 완료! 카톡으로 보내면 상대방이 바로 합칠 수 있어요.');
+    } catch {
+      prompt('아래 링크를 복사해 카톡으로 보내세요:', link);
+    }
+  }
+
+  function renderShareBar() {
+    const bar = $('#shareStatusBar');
+    const authorBar = $('#authorFilterBar');
+    if (!bar) return;
+
+    const nick = getCurrentAuthorName();
+    bar.innerHTML = `
+      <div class="share-bar-left">
+        <button class="author-self-btn" type="button" id="openShareModalNickBtn" title="클릭해서 내 별명 변경">
+          내 별명 ${renderAuthorBadge(nick)} <span style="font-size:0.72rem; color:var(--ink-3); font-weight:600;">변경</span>
+        </button>
+      </div>
+      <div class="share-bar-actions">
+        <button class="ghost-btn accent" id="copyShareLinkBtn" type="button" style="height:30px; font-size:0.76rem;">공유 링크 복사</button>
+      </div>
+    `;
+
+    $('#openShareModalNickBtn', bar).addEventListener('click', openShareModal);
+    $('#copyShareLinkBtn', bar).addEventListener('click', handleCopyShareLink);
+
+    // 작성자 필터 칩 렌더링 (2명 이상일 때 표시)
+    const authors = getAllAuthors();
+    if (authorBar) {
+      if (authors.length >= 2) {
+        if (state.authorFilter !== '전체' && !authors.includes(state.authorFilter)) state.authorFilter = '전체';
+        authorBar.style.display = 'flex';
+        authorBar.innerHTML = `
+          <span class="news-meta" style="font-weight:700; flex-shrink:0;">작성자:</span>
+          <button class="pill ${state.authorFilter === '전체' ? 'active' : ''}" type="button" data-af="전체">전체 (${authors.length}명)</button>
+          ${authors
+            .map((a) => `<button class="pill ${state.authorFilter === a ? 'active' : ''}" type="button" data-af="${esc(a)}">${esc(a)}</button>`)
+            .join('')}
+        `;
+        $$('[data-af]', authorBar).forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.authorFilter = btn.dataset.af;
+            renderPortfolioTab();
+          });
+        });
+      } else {
+        state.authorFilter = '전체';
+        authorBar.style.display = 'none';
+      }
+    }
+  }
+
+  function openShareModal() {
+    const input = $('#authorNicknameInput');
+    if (input) input.value = getCurrentAuthorName();
+    $('#shareModalBackdrop').classList.add('open');
+    $('#shareModalBackdrop').setAttribute('aria-hidden', 'false');
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+
+  function closeShareModal() {
+    $('#shareModalBackdrop').classList.remove('open');
+    $('#shareModalBackdrop').setAttribute('aria-hidden', 'true');
+  }
+
+  function openReceiveShareModal(sharedData) {
+    state.pendingShareData = sharedData;
+    const body = $('#receiveShareBody');
+    if (!body) return;
+    const sender = sharedData.sender || '지인';
+    const bCount = sharedData.buyLogs.length;
+    const fCount = sharedData.fxLogs.length;
+    const authorsInShare = [...new Set([...sharedData.buyLogs, ...sharedData.fxLogs].map((x) => x.author || sender))];
+
+    body.innerHTML = `
+      <div style="padding:14px; border-radius:14px; background:var(--surface-sub); display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          ${authorsInShare.map((a) => renderAuthorBadge(a)).join('')}
+          <strong style="font-size:0.92rem;">님이 보낸 투자 일지</strong>
+        </div>
+        <div class="news-meta">매수 기록 <strong>${bCount}건</strong> · 환전 기록 <strong>${fCount}건</strong></div>
+        <p style="margin:0; font-size:0.8rem; color:var(--ink-2); line-height:1.5;">
+          내 기존 기록은 그대로 유지되고, 중복 없는 새 기록만 깔끔하게 합쳐집니다.<br/>
+          합친 뒤에는 작성자별 필터와 멤버별 수익률 비교를 바로 볼 수 있어요.
+        </p>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button class="ghost-btn" id="cancelReceiveBtn" type="button" style="height:38px;">취소</button>
+        <button class="primary-sm-btn" id="confirmMergeShareBtn" type="button" style="padding:10px 18px; font-size:0.86rem;">내 일지와 합치기</button>
+      </div>
+    `;
+
+    $('#cancelReceiveBtn', body).addEventListener('click', closeReceiveShareModal);
+    $('#confirmMergeShareBtn', body).addEventListener('click', () => {
+      if (!window.SimpleShare || !state.pendingShareData) return;
+      const mb = window.SimpleShare.mergeLogs(state.buyLogs, state.pendingShareData.buyLogs, 'buy');
+      const mf = window.SimpleShare.mergeLogs(state.fxLogs, state.pendingShareData.fxLogs, 'fx');
+      state.buyLogs = mb.merged;
+      state.fxLogs = mf.merged;
+      saveBuyLogs();
+      saveFxLogs();
+      closeReceiveShareModal();
+      renderPortfolioTab();
+      const totalAdded = mb.added + mf.added;
+      showToast(totalAdded > 0 ? `공유 일지 ${totalAdded}건을 합쳤어요! 멤버별로 비교해 보세요.` : '이미 모두 반영된 기록입니다.');
+    });
+
+    $('#receiveShareBackdrop').classList.add('open');
+    $('#receiveShareBackdrop').setAttribute('aria-hidden', 'false');
+  }
+
+  function closeReceiveShareModal() {
+    state.pendingShareData = null;
+    $('#receiveShareBackdrop').classList.remove('open');
+    $('#receiveShareBackdrop').setAttribute('aria-hidden', 'true');
+  }
+
+  function computePortfolioStats(buyList = null, fxList = null) {
     const curFx = state.data.fx.usdKrw;
     const etfMap = new Map(state.data.etfs.map((e) => [e.ticker, e]));
+    const active = buyList && fxList ? { buyLogs: buyList, fxLogs: fxList } : getActiveFilteredLogs();
 
-    // 종목별 집계
     const byTicker = {};
     let totalBuyUsd = 0;
     let totalBuyKrw = 0;
-    for (const log of state.buyLogs) {
+    for (const log of active.buyLogs) {
       const t = log.ticker;
       const qty = Number(log.qty) || 0;
       const price = Number(log.price) || 0;
@@ -1315,16 +1642,14 @@
     const avgBuyFx = totalBuyUsd > 0 ? totalBuyKrw / totalBuyUsd : curFx;
     const fxEffectPct = totalBuyUsd > 0 ? ((curFx - avgBuyFx) / avgBuyFx) * 100 : 0;
 
-    // 카테고리 비중
-    const catTotals = { '대표지수': 0, '배당·인컴': 0, '기술·반도체': 0, '채권·금': 0 };
+    const catTotals = { '대표지수': 0, '배당·인컴': 0, '기술·반도체': 0, '채권·금': 0, '레버리지': 0 };
     for (const h of holdings) {
       const c = h.etf ? h.etf.category : '대표지수';
       catTotals[c] = (catTotals[c] || 0) + h.valKrw;
     }
 
-    // 환전 집계
-    const totalFxKrw = state.fxLogs.reduce((s, x) => s + (Number(x.krw) || 0), 0);
-    const totalFxUsd = state.fxLogs.reduce((s, x) => s + (Number(x.usd) || 0), 0);
+    const totalFxKrw = active.fxLogs.reduce((s, x) => s + (Number(x.krw) || 0), 0);
+    const totalFxUsd = active.fxLogs.reduce((s, x) => s + (Number(x.usd) || 0), 0);
     const avgFxRate = totalFxUsd > 0 ? totalFxKrw / totalFxUsd : 0;
     const fxDiffPerUsd = avgFxRate > 0 ? curFx - avgFxRate : 0;
     const estRemainingUsd = totalFxUsd - totalBuyUsd;
@@ -1349,19 +1674,23 @@
   }
 
   function loadSampleJournal() {
+    const myNick = state.authorNick && state.authorNick !== '나' ? state.authorNick : '민수';
+    state.authorNick = myNick;
+    if (window.SimpleShare) window.SimpleShare.saveNickname(myNick);
     state.fxLogs = [
-      { id: 'fx1', date: '2026-10-15', krw: 2000000, rate: 1355.0, usd: 1476.01, memo: '1차 분할 환전' },
-      { id: 'fx2', date: '2026-11-18', krw: 2000000, rate: 1346.8, usd: 1485.0, memo: '2차 환율 안정 구간 환전' }
+      { id: 'fx1', date: '2026-10-15', krw: 2000000, rate: 1355.0, usd: 1476.01, memo: '1차 분할 환전', author: myNick },
+      { id: 'fx2', date: '2026-11-18', krw: 2000000, rate: 1346.8, usd: 1485.0, memo: '2차 환율 안정 구간 환전', author: '지영' }
     ];
     state.buyLogs = [
-      { id: 'b1', date: '2026-10-16', ticker: 'SPLG', price: 86.20, qty: 10, fxRate: 1355.0, memo: 'S&P500 적립식 1차' },
-      { id: 'b2', date: '2026-11-05', ticker: 'SCHD', price: 34.60, qty: 20, fxRate: 1350.0, memo: '배당 방어 비중 확보' },
-      { id: 'b3', date: '2026-11-19', ticker: 'QQQM', price: 271.50, qty: 3, fxRate: 1346.8, memo: '나스닥 조정 1차 분할' }
+      { id: 'b1', date: '2026-10-16', ticker: 'SPLG', price: 86.20, qty: 10, fxRate: 1355.0, memo: 'S&P500 적립식 1차', author: myNick },
+      { id: 'b2', date: '2026-11-05', ticker: 'SCHD', price: 34.60, qty: 20, fxRate: 1350.0, memo: '배당 방어 비중 확보', author: '지영' },
+      { id: 'b3', date: '2026-11-19', ticker: 'QQQM', price: 271.50, qty: 3, fxRate: 1346.8, memo: '나스닥 조정 1차 분할', author: myNick },
+      { id: 'b4', date: '2026-11-22', ticker: 'SGOV', price: 100.55, qty: 8, fxRate: 1346.8, memo: '달러 파킹 대기 자금', author: '지영' }
     ];
     saveFxLogs();
     saveBuyLogs();
     renderPortfolioTab();
-    showToast('샘플 매수·환전 일지를 불러왔어요. 자유롭게 수정·삭제할 수 있습니다.');
+    showToast(`${myNick} · 지영 2인 공동 일지 샘플을 불러왔어요!`);
   }
 
   function renderPortfolioTab(preselectTicker = null) {
@@ -1369,11 +1698,19 @@
     const root = $('#portfolioRoot');
     if (!root || !state.data) return;
 
-    const stats = computePortfolioStats();
+    renderShareBar();
+    const activeLogs = getActiveFilteredLogs();
+    const stats = computePortfolioStats(activeLogs.buyLogs, activeLogs.fxLogs);
     const curFx = state.data.fx.usdKrw;
+    const allAuthors = getAllAuthors();
+
+    if (state.portfolioSub === 'recommend') {
+      renderRecommendationsInto(root);
+      return;
+    }
 
     if (state.portfolioSub === 'analysis') {
-      if (!stats.holdings.length && !state.fxLogs.length) {
+      if (!stats.holdings.length && !activeLogs.fxLogs.length) {
         root.innerHTML = `
           <div class="surface" style="text-align:center; padding:36px 20px;">
             <h2 class="section-title" style="margin-bottom:8px;">아직 기록된 매수·환전 일지가 없어요</h2>
@@ -1381,12 +1718,14 @@
             <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
               <button class="primary-sm-btn" id="goAddBuyBtn" type="button" style="padding:10px 16px; font-size:0.86rem;">+ ETF 매수 기록하기</button>
               <button class="ghost-btn" id="goAddFxBtn" type="button" style="height:38px;">+ 환전 기록하기</button>
-              <button class="ghost-btn accent" id="loadSampleBtn" type="button" style="height:38px;">샘플 기록으로 미리보기</button>
+              <button class="ghost-btn accent" id="goRecComboBtn" type="button" style="height:38px;">추천 조합 먼저 보기</button>
+              <button class="ghost-btn" id="loadSampleBtn" type="button" style="height:38px;">샘플 미리보기</button>
             </div>
           </div>
         `;
         $('#goAddBuyBtn', root).addEventListener('click', () => { state.portfolioSub = 'etflog'; renderPortfolioTab(); });
         $('#goAddFxBtn', root).addEventListener('click', () => { state.portfolioSub = 'fxlog'; renderPortfolioTab(); });
+        $('#goRecComboBtn', root).addEventListener('click', () => { state.portfolioSub = 'recommend'; renderPortfolioTab(); });
         $('#loadSampleBtn', root).addEventListener('click', loadSampleJournal);
         return;
       }
@@ -1397,10 +1736,14 @@
         '대표지수': Math.round((stats.catTotals['대표지수'] / totalV) * 100),
         '배당·인컴': Math.round((stats.catTotals['배당·인컴'] / totalV) * 100),
         '기술·반도체': Math.round((stats.catTotals['기술·반도체'] / totalV) * 100),
-        '채권·금': Math.round((stats.catTotals['채권·금'] / totalV) * 100)
+        '채권·금': Math.round((stats.catTotals['채권·금'] / totalV) * 100),
+        '레버리지': Math.round(((stats.catTotals['레버리지'] || 0) / totalV) * 100)
       };
 
       const diagLines = [];
+      if (pcts['레버리지'] >= 15) {
+        diagLines.push({ light: 'red', label: '레버리지 경고', text: `3배 레버리지 비중이 ${pcts['레버리지']}%입니다. VIX 28 고변동 구간에서는 10% 이하로 제한하는 것이 안전해요.` });
+      }
       if (pcts['기술·반도체'] >= 50) {
         diagLines.push({ light: 'red', label: '비중 경고', text: `기술·반도체 비중이 ${pcts['기술·반도체']}%로 높아요. VIX 28 장세에서는 SCHD·SGOV 분산이 안전합니다.` });
       } else if (pcts['대표지수'] + pcts['배당·인컴'] >= 50) {
@@ -1429,11 +1772,45 @@
       }
       const myIssues = [...matchedGlobal, ...ownedEtfNews].slice(0, 6);
 
+      // 멤버별 비교 보드 (2명 이상 + 전체 보기일 때 표시)
+      let memberBoardHtml = '';
+      if (allAuthors.length >= 2 && state.authorFilter === '전체') {
+        const mCards = allAuthors
+          .map((author) => {
+            const mBuy = state.buyLogs.filter((x) => (x.author || '나') === author);
+            const mFx = state.fxLogs.filter((x) => (x.author || '나') === author);
+            const mAvatar = mBuy.find((x) => x.authorAvatar)?.authorAvatar || mFx.find((x) => x.authorAvatar)?.authorAvatar || '';
+            const ms = computePortfolioStats(mBuy, mFx);
+            return `
+            <button class="member-card" type="button" data-pick-member="${esc(author)}">
+              <div class="mc-top">
+                ${renderAuthorBadge(author, mAvatar)}
+                <span class="row-delta num ${ms.totalRetPct >= 0 ? 'up' : 'down'}">${fmtPct(ms.totalRetPct)}</span>
+              </div>
+              <div class="mc-val num">${fmtKrw(ms.totalValKrw)}</div>
+              <div class="news-meta num">보유 ${ms.holdings.length}종 · 평균환율 ${ms.avgFxRate > 0 ? `${ms.avgFxRate.toFixed(0)}원` : '-'}</div>
+            </button>
+          `;
+          })
+          .join('');
+        memberBoardHtml = `
+          <div class="surface">
+            <div class="list-header" style="margin-bottom:12px;">
+              <div>
+                <h2 class="section-title">멤버별 투자 현황 비교</h2>
+                <p class="section-sub">멤버를 누르면 그 사람의 포트폴리오와 일지만 따로 볼 수 있어요</p>
+              </div>
+            </div>
+            <div class="member-grid">${mCards}</div>
+          </div>
+        `;
+      }
+
       root.innerHTML = `
         <!-- 1. 내 계좌 종합 요약 -->
         <div class="surface">
           <div class="hero-eyebrow">
-            <span class="eyebrow-text">내 미국 ETF 포트폴리오</span>
+            <span class="eyebrow-text">${state.authorFilter === '전체' && allAuthors.length >= 2 ? '함께 보는 ETF 포트폴리오 (전체 합산)' : `${esc(state.authorFilter === '전체' ? getCurrentAuthorName() : state.authorFilter)}님의 미국 ETF 포트폴리오`}</span>
             <span class="source-tag">현재 환율 ${curFx.toLocaleString('ko-KR')}원 기준</span>
           </div>
           <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
@@ -1460,6 +1837,8 @@
           </div>
         </div>
 
+        ${memberBoardHtml}
+
         <!-- 2. 자산 배분 & 자동 진단 -->
         <div class="surface">
           <div class="list-header" style="margin-bottom:12px;">
@@ -1474,12 +1853,14 @@
             <div style="width:${pcts['배당·인컴']}%; background:#00c471;"></div>
             <div style="width:${pcts['기술·반도체']}%; background:#8b5cf6;"></div>
             <div style="width:${pcts['채권·금']}%; background:#ff9f0a;"></div>
+            <div style="width:${pcts['레버리지']}%; background:#f04452;"></div>
           </div>
           <div class="alloc-legend num">
             <span><i style="background:#3182f6;"></i>대표지수 ${pcts['대표지수']}%</span>
             <span><i style="background:#00c471;"></i>배당·인컴 ${pcts['배당·인컴']}%</span>
             <span><i style="background:#8b5cf6;"></i>기술·반도체 ${pcts['기술·반도체']}%</span>
             <span><i style="background:#ff9f0a;"></i>채권·금 ${pcts['채권·금']}%</span>
+            ${pcts['레버리지'] > 0 ? `<span><i style="background:#f04452;"></i>레버리지 ${pcts['레버리지']}%</span>` : ''}
           </div>
 
           <ul class="gb-list" style="margin-top:14px;">
@@ -1592,6 +1973,12 @@
       `;
 
       $('#addMoreBuyBtn', root).addEventListener('click', () => { state.portfolioSub = 'etflog'; renderPortfolioTab(); });
+      $$('[data-pick-member]', root).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.authorFilter = btn.dataset.pickMember;
+          renderPortfolioTab();
+        });
+      });
       $$('[data-open-own]', root).forEach((el) => {
         el.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -1652,12 +2039,12 @@
 
         <div class="surface">
           <div class="list-header" style="margin-bottom:10px;">
-            <h2 class="section-title">내 매수 일지 내역 (${state.buyLogs.length}건)</h2>
+            <h2 class="section-title">매수 일지 내역 (${activeLogs.buyLogs.length}건)</h2>
             ${state.buyLogs.length ? '<button class="ghost-btn" id="clearBuyLogsBtn" type="button" style="height:30px; font-size:0.75rem; color:var(--red);">전체 삭제</button>' : ''}
           </div>
           <div class="journal-list">
-            ${state.buyLogs.length
-              ? [...state.buyLogs]
+            ${activeLogs.buyLogs.length
+              ? [...activeLogs.buyLogs]
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((log) => {
                     const etf = state.data.etfs.find((e) => e.ticker === log.ticker);
@@ -1667,7 +2054,8 @@
                     return `
                     <div class="j-row">
                       <div class="j-left">
-                        <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                          ${renderAuthorBadge(log.author || getCurrentAuthorName())}
                           <button class="etf-chip" type="button" data-open-buy="${log.ticker}">${log.ticker}</button>
                           <strong class="num" style="font-size:0.9rem;">${log.qty}주 × ${fmtUsd(log.price)}</strong>
                           <span class="news-meta">${esc(log.date)} · 환율 ${Number(log.fxRate).toLocaleString('ko-KR')}원</span>
@@ -1692,7 +2080,7 @@
         const p = Number($('#bfPrice', root).value) || 0;
         const q = Number($('#bfQty', root).value) || 0;
         const fx = Number($('#bfFx', root).value) || curFx;
-        $('#bfPreview', root).textContent = `예상 매수액: ${fmtUsd(p * q)} (약 ${fmtKrw(p * q * fx)})`;
+        $('#bfPreview', root).textContent = `작성자 [${getCurrentAuthorName()}] · 예상 ${fmtUsd(p * q)} (약 ${fmtKrw(p * q * fx)})`;
       };
       updateBuyPreview();
 
@@ -1705,23 +2093,26 @@
 
       $('#buyLogForm', root).addEventListener('submit', (ev) => {
         ev.preventDefault();
-        state.buyLogs.push({
-          id: `b_${Date.now()}`,
+        const item = {
+          id: `b_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           date: $('#bfDate', root).value || todayStr(),
           ticker: $('#bfTicker', root).value,
           price: Number($('#bfPrice', root).value),
           qty: Number($('#bfQty', root).value),
           fxRate: Number($('#bfFx', root).value) || curFx,
-          memo: $('#bfMemo', root).value.trim()
-        });
+          memo: $('#bfMemo', root).value.trim(),
+          author: getCurrentAuthorName()
+        };
+        state.buyLogs.push(item);
         saveBuyLogs();
-        renderPortfolioTab($('#bfTicker', root).value);
-        showToast('ETF 매수 일지에 저장했어요.');
+        showToast(`[${item.author}] 매수 일지에 저장했어요.`);
+        renderPortfolioTab(item.ticker);
       });
 
       $$('[data-del-buy]', root).forEach((btn) => {
         btn.addEventListener('click', () => {
-          state.buyLogs = state.buyLogs.filter((x) => x.id !== btn.dataset.delBuy);
+          const delId = btn.dataset.delBuy;
+          state.buyLogs = state.buyLogs.filter((x) => x.id !== delId);
           saveBuyLogs();
           renderPortfolioTab();
           showToast('기록을 삭제했어요.');
@@ -1805,19 +2196,20 @@
 
       <div class="surface">
         <div class="list-header" style="margin-bottom:10px;">
-          <h2 class="section-title">내 환전 일지 내역 (${state.fxLogs.length}건)</h2>
+          <h2 class="section-title">환전 일지 내역 (${activeLogs.fxLogs.length}건)</h2>
           ${state.fxLogs.length ? '<button class="ghost-btn" id="clearFxLogsBtn" type="button" style="height:30px; font-size:0.75rem; color:var(--red);">전체 삭제</button>' : ''}
         </div>
         <div class="journal-list">
-          ${state.fxLogs.length
-            ? [...state.fxLogs]
+          ${activeLogs.fxLogs.length
+            ? [...activeLogs.fxLogs]
                 .sort((a, b) => b.date.localeCompare(a.date))
                 .map((log) => {
                   const diff = curFx - Number(log.rate);
                   return `
                   <div class="j-row">
                     <div class="j-left">
-                      <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        ${renderAuthorBadge(log.author || getCurrentAuthorName())}
                         <strong class="num" style="font-size:0.92rem;">${fmtKrw(log.krw)} → ${fmtUsd(log.usd)}</strong>
                         <span class="news-meta">${esc(log.date)} · 적용 ${Number(log.rate).toLocaleString('ko-KR')}원</span>
                       </div>
@@ -1839,7 +2231,7 @@
     const updateFxPreview = () => {
       const k = Number($('#ffKrw', root).value) || 0;
       const r = Math.max(500, Number($('#ffRate', root).value) || curFx);
-      $('#ffPreview', root).textContent = `확보 달러: ${fmtUsd(k / r)}`;
+      $('#ffPreview', root).textContent = `작성자 [${getCurrentAuthorName()}] · 확보 달러 ${fmtUsd(k / r)}`;
     };
     updateFxPreview();
     ['#ffKrw', '#ffRate'].forEach((id) => $(id, root).addEventListener('input', updateFxPreview));
@@ -1848,22 +2240,25 @@
       ev.preventDefault();
       const krw = Number($('#ffKrw', root).value);
       const rate = Number($('#ffRate', root).value);
-      state.fxLogs.push({
-        id: `fx_${Date.now()}`,
+      const item = {
+        id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         date: $('#ffDate', root).value || todayStr(),
         krw,
         rate,
         usd: +(krw / rate).toFixed(2),
-        memo: $('#ffMemo', root).value.trim()
-      });
+        memo: $('#ffMemo', root).value.trim(),
+        author: getCurrentAuthorName()
+      };
+      state.fxLogs.push(item);
       saveFxLogs();
+      showToast(`[${item.author}] 환전 일지에 저장했어요.`);
       renderPortfolioTab();
-      showToast('환전 일지에 저장했어요.');
     });
 
     $$('[data-del-fx]', root).forEach((btn) => {
       btn.addEventListener('click', () => {
-        state.fxLogs = state.fxLogs.filter((x) => x.id !== btn.dataset.delFx);
+        const delId = btn.dataset.delFx;
+        state.fxLogs = state.fxLogs.filter((x) => x.id !== delId);
         saveFxLogs();
         renderPortfolioTab();
         showToast('환전 기록을 삭제했어요.');
@@ -1957,8 +2352,23 @@
     renderMacroTab();
     renderPortfolioTab();
 
-    // URL 파라미터 ?tab=macro / portfolio 및 ?etf=QQQM 처리
+    // URL 파라미터 ?tab=macro / portfolio, ?share=... (공유 링크 수신) 및 ?etf=QQQM 처리
     const urlParams = new URLSearchParams(location.search);
+    const shareToken = urlParams.get('share');
+    if (shareToken && window.SimpleShare) {
+      const decoded = await window.SimpleShare.decodeShareToken(shareToken);
+      if (decoded && (decoded.buyLogs.length || decoded.fxLogs.length)) {
+        switchTab('portfolio', false);
+        openReceiveShareModal(decoded);
+        // 주소창에서 긴 share 파라미터는 정리
+        try {
+          const clean = new URL(location.href);
+          clean.searchParams.delete('share');
+          history.replaceState(null, '', clean.pathname + clean.search);
+        } catch {}
+      }
+    }
+
     const tabParam = urlParams.get('tab');
     if (tabParam && ['dashboard', 'fx', 'macro', 'portfolio'].includes(tabParam)) {
       switchTab(tabParam, false);
@@ -2012,34 +2422,29 @@
     return null;
   }
 
-  async function fetchYahooLiveBrowser(symbol) {
+  async function fetchYahooLiveBrowser(symbol, timeoutMs = 3500) {
     const target = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
-    const attempts = [
-      async () => {
-        const w = await fetchJsonWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(target)}`, 4500);
-        return w?.contents ? JSON.parse(w.contents) : null;
-      },
-      async () => fetchJsonWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`, 4500)
-    ];
-    for (const run of attempts) {
-      let json = null;
-      try { json = await run(); } catch { json = null; }
-      const res = json?.chart?.result?.[0];
-      if (!res) continue;
-      const meta = res.meta || {};
-      const ts = res.timestamp || [];
-      const rawCloses = res.indicators?.quote?.[0]?.close || [];
-      const points = [];
-      for (let i = 0; i < ts.length; i++) {
-        if (rawCloses[i] != null) {
-          points.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: Math.round(Number(rawCloses[i]) * 100) / 100 });
-        }
+    const w = await fetchJsonWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(target)}`, timeoutMs);
+    let json = null;
+    try { json = w?.contents ? JSON.parse(w.contents) : null; } catch { json = null; }
+    if (!json) {
+      json = await fetchJsonWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`, timeoutMs);
+    }
+    const res = json?.chart?.result?.[0];
+    if (!res) return null;
+    const meta = res.meta || {};
+    const ts = res.timestamp || [];
+    const rawCloses = res.indicators?.quote?.[0]?.close || [];
+    const points = [];
+    for (let i = 0; i < ts.length; i++) {
+      if (rawCloses[i] != null) {
+        points.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: Math.round(Number(rawCloses[i]) * 100) / 100 });
       }
-      if (points.length >= 2) {
-        const cur = meta.regularMarketPrice != null ? Math.round(Number(meta.regularMarketPrice) * 100) / 100 : points[points.length - 1].close;
-        const prev = meta.chartPreviousClose != null && points.length < 3 ? Number(meta.chartPreviousClose) : points[points.length - 2].close;
-        return { cur, prev, points };
-      }
+    }
+    if (points.length >= 2) {
+      const cur = meta.regularMarketPrice != null ? Math.round(Number(meta.regularMarketPrice) * 100) / 100 : points[points.length - 1].close;
+      const prev = meta.chartPreviousClose != null && points.length < 3 ? Number(meta.chartPreviousClose) : points[points.length - 2].close;
+      return { cur, prev, points };
     }
     return null;
   }
@@ -2057,11 +2462,84 @@
     return Math.round((100 - 100 / (1 + gains / losses)) * 10) / 10;
   }
 
+  function applyEtfLiveResult(etf, res) {
+    const closes = res.points.map((p) => p.close);
+    const cur = res.cur;
+    const prev = res.prev || cur;
+    const high52 = Math.max(...closes, cur);
+    const low52 = Math.min(...closes, cur);
+    const mdd = Math.round(((cur - high52) / high52) * 10000) / 100;
+    const rsi14 = calcBrowserRsi14(closes);
+    const maSlice = closes.slice(-Math.min(200, closes.length));
+    const ma200 = Math.round((maSlice.reduce((a, b) => a + b, 0) / maSlice.length) * 100) / 100;
+    const ma200Diff = ma200 > 0 ? Math.round(((cur - ma200) / ma200) * 10000) / 100 : 0;
+
+    const pos = etf.news.filter((n) => n.sentiment === 'positive').length;
+    const neg = etf.news.filter((n) => n.sentiment === 'negative').length;
+    const newsScore = Math.min(95, Math.max(15, 50 + (pos - neg) * 12));
+    const valScore = Math.min(95, Math.max(25, Math.round(55 + Math.abs(mdd) * 2.5)));
+    const techScore = rsi14 < 35 ? 86 : rsi14 < 48 ? 74 : rsi14 < 62 ? 58 : rsi14 < 72 ? 42 : 28;
+    const fxBonus = 100 - state.data.fx.percentile1Y;
+    const score = Math.round(valScore * 0.35 + techScore * 0.3 + newsScore * 0.2 + fxBonus * 0.15);
+    const light = score >= 68 ? 'green' : score >= 48 ? 'yellow' : 'red';
+
+    etf.price = cur;
+    etf.changePct = prev > 0 ? Math.round(((cur - prev) / prev) * 10000) / 100 : 0;
+    etf.high52w = Math.round(high52 * 100) / 100;
+    etf.low52w = Math.round(low52 * 100) / 100;
+    etf.mddFromHigh = mdd;
+    etf.rsi14 = rsi14;
+    etf.ma200 = ma200;
+    etf.ma200DiffPct = ma200Diff;
+    etf.score = score;
+    etf.light = light;
+    etf.actionBadge = light === 'green' ? '분할매수 유리' : light === 'yellow' ? '중립 · 분할' : '변동성 주의';
+
+    if (etf.ticker !== 'SGOV') {
+      const buyLow = Math.round(Math.max(low52, ma200 * 0.94) * 100) / 100;
+      let buyHigh = Math.round(Math.min(high52 * 0.92, ma200 * 1.01) * 100) / 100;
+      if (buyHigh <= buyLow) buyHigh = Math.round(buyLow * 1.04 * 100) / 100;
+      const fairHigh = Math.round(Math.max(buyHigh * 1.04, high52 * 0.97) * 100) / 100;
+      const zLight = cur <= buyHigh ? 'green' : cur <= fairHigh ? 'yellow' : 'red';
+      etf.priceZones = {
+        buyLow,
+        buyHigh,
+        fairHigh,
+        overPrice: fairHigh,
+        status: zLight === 'green' ? '적극 분할 구간' : zLight === 'yellow' ? '적정 적립 구간' : '추격 주의 구간',
+        light: zLight,
+        note:
+          zLight === 'green'
+            ? '200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간'
+            : zLight === 'yellow'
+              ? '고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음'
+              : '52주 고점 근접 · 일괄 매수보다 눌림목 대기 권장'
+      };
+    }
+
+    const step = Math.max(1, Math.floor(res.points.length / 40));
+    etf.history = res.points
+      .filter((_, idx2) => idx2 % step === 0 || idx2 === res.points.length - 1)
+      .map((p) => ({ date: p.date, close: p.close, ma200 }));
+  }
+
+  function renderAllTabs() {
+    renderOverview();
+    renderEtfList();
+    renderFxTab();
+    renderMacroTab();
+    renderPortfolioTab();
+    if (state.selectedTicker) {
+      const found = state.data.etfs.find((e) => e.ticker === state.selectedTicker);
+      if (found) renderDrawerContent(found);
+    }
+  }
+
   async function runBrowserLiveRefresh() {
     let fxUpdated = false;
     let etfUpdatedCount = 0;
 
-    // 1) 실시간 원/달러 환율 업데이트
+    // 1단계 (1초 이내 즉시 반영): 실시간 원/달러 환율 + 현재 누른 시각 갱신
     const liveFx = await fetchLiveUsdKrw();
     if (liveFx && liveFx > 800 && liveFx < 2500) {
       fxUpdated = true;
@@ -2091,107 +2569,46 @@
       state.data.overview.fxSignal.summary = `1년 중 ${fx.percentile1Y <= 40 ? '싼 편' : fx.percentile1Y <= 70 ? '보통' : '비싼 편'} (하위 ${fx.percentile1Y}%)`;
     }
 
-    // 2) VIX 및 16종 ETF 실시간 시세 병렬 조회 (4개씩 배치)
-    const vixRes = await fetchYahooLiveBrowser('^VIX');
-    if (vixRes) {
-      state.data.overview.marketSentiment.vix = vixRes.cur;
-      const vixInd = state.data.macro.indicators.find((x) => x.id === 'vix');
-      if (vixInd) {
-        vixInd.value = String(vixRes.cur);
-        vixInd.numValue = vixRes.cur;
-        vixInd.light = vixRes.cur < 18 ? 'green' : vixRes.cur < 25 ? 'yellow' : 'red';
-        vixInd.tag = vixRes.cur < 18 ? '변동성 안정' : vixRes.cur < 25 ? '경계 구간' : '변동성 확대';
-      }
-    }
-
-    const etfs = state.data.etfs;
-    for (let i = 0; i < etfs.length; i += 4) {
-      const batch = etfs.slice(i, i + 4);
-      const results = await Promise.all(batch.map((e) => fetchYahooLiveBrowser(e.ticker)));
-      results.forEach((res, idx) => {
-        if (!res) return;
-        etfUpdatedCount++;
-        const etf = batch[idx];
-        const closes = res.points.map((p) => p.close);
-        const cur = res.cur;
-        const prev = res.prev || cur;
-        const high52 = Math.max(...closes, cur);
-        const low52 = Math.min(...closes, cur);
-        const mdd = Math.round(((cur - high52) / high52) * 10000) / 100;
-        const rsi14 = calcBrowserRsi14(closes);
-        const maSlice = closes.slice(-Math.min(200, closes.length));
-        const ma200 = Math.round((maSlice.reduce((a, b) => a + b, 0) / maSlice.length) * 100) / 100;
-        const ma200Diff = ma200 > 0 ? Math.round(((cur - ma200) / ma200) * 10000) / 100 : 0;
-
-        const pos = etf.news.filter((n) => n.sentiment === 'positive').length;
-        const neg = etf.news.filter((n) => n.sentiment === 'negative').length;
-        const newsScore = Math.min(95, Math.max(15, 50 + (pos - neg) * 12));
-        const valScore = Math.min(95, Math.max(25, Math.round(55 + Math.abs(mdd) * 2.5)));
-        const techScore = rsi14 < 35 ? 86 : rsi14 < 48 ? 74 : rsi14 < 62 ? 58 : rsi14 < 72 ? 42 : 28;
-        const fxBonus = 100 - state.data.fx.percentile1Y;
-        const score = Math.round(valScore * 0.35 + techScore * 0.3 + newsScore * 0.2 + fxBonus * 0.15);
-        const light = score >= 68 ? 'green' : score >= 48 ? 'yellow' : 'red';
-
-        etf.price = cur;
-        etf.changePct = prev > 0 ? Math.round(((cur - prev) / prev) * 10000) / 100 : 0;
-        etf.high52w = Math.round(high52 * 100) / 100;
-        etf.low52w = Math.round(low52 * 100) / 100;
-        etf.mddFromHigh = mdd;
-        etf.rsi14 = rsi14;
-        etf.ma200 = ma200;
-        etf.ma200DiffPct = ma200Diff;
-        etf.score = score;
-        etf.light = light;
-        etf.actionBadge = light === 'green' ? '분할매수 유리' : light === 'yellow' ? '중립 · 분할' : '변동성 주의';
-
-        if (etf.ticker !== 'SGOV') {
-          const buyLow = Math.round(Math.max(low52, ma200 * 0.94) * 100) / 100;
-          let buyHigh = Math.round(Math.min(high52 * 0.92, ma200 * 1.01) * 100) / 100;
-          if (buyHigh <= buyLow) buyHigh = Math.round(buyLow * 1.04 * 100) / 100;
-          const fairHigh = Math.round(Math.max(buyHigh * 1.04, high52 * 0.97) * 100) / 100;
-          const zLight = cur <= buyHigh ? 'green' : cur <= fairHigh ? 'yellow' : 'red';
-          etf.priceZones = {
-            buyLow,
-            buyHigh,
-            fairHigh,
-            overPrice: fairHigh,
-            status: zLight === 'green' ? '적극 분할 구간' : zLight === 'yellow' ? '적정 적립 구간' : '추격 주의 구간',
-            light: zLight,
-            note:
-              zLight === 'green'
-                ? '200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간'
-                : zLight === 'yellow'
-                  ? '고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음'
-                  : '52주 고점 근접 · 일괄 매수보다 눌림목 대기 권장'
-          };
-        }
-
-        const step = Math.max(1, Math.floor(res.points.length / 40));
-        etf.history = res.points
-          .filter((_, idx2) => idx2 % step === 0 || idx2 === res.points.length - 1)
-          .map((p) => ({ date: p.date, close: p.close, ma200 }));
-      });
-    }
-
-    // 현재 누른 시각(KST)으로 헤더 날짜·시간 즉시 갱신
     const nowKst = formatNowKst();
     state.data.meta.updatedAt = nowKst.iso;
     state.data.meta.updatedLabel = nowKst.label;
-    state.data.meta.sourceMode = fxUpdated || etfUpdatedCount > 0 ? 'live' : state.data.meta.sourceMode;
+    state.data.meta.sourceMode = fxUpdated ? 'live' : state.data.meta.sourceMode;
+    renderAllTabs();
+
+    // 2단계 (빠른 프로브 1회 후 전체 병렬 조회 — 최대 5초 컷, 무한대기 방지!)
+    const firstEtf = state.data.etfs[0];
+    const probe = firstEtf ? await fetchYahooLiveBrowser(firstEtf.ticker, 3000) : null;
+    if (probe) {
+      applyEtfLiveResult(firstEtf, probe);
+      etfUpdatedCount++;
+      const restEtfs = state.data.etfs.slice(1);
+      const [vixRes, ...restRes] = await Promise.all([
+        fetchYahooLiveBrowser('^VIX', 4000),
+        ...restEtfs.map((e) => fetchYahooLiveBrowser(e.ticker, 4000))
+      ]);
+      if (vixRes) {
+        state.data.overview.marketSentiment.vix = vixRes.cur;
+        const vixInd = state.data.macro.indicators.find((x) => x.id === 'vix');
+        if (vixInd) {
+          vixInd.value = String(vixRes.cur);
+          vixInd.numValue = vixRes.cur;
+          vixInd.light = vixRes.cur < 18 ? 'green' : vixRes.cur < 25 ? 'yellow' : 'red';
+          vixInd.tag = vixRes.cur < 18 ? '변동성 안정' : vixRes.cur < 25 ? '경계 구간' : '변동성 확대';
+        }
+      }
+      restRes.forEach((r, idx) => {
+        if (r) {
+          applyEtfLiveResult(restEtfs[idx], r);
+          etfUpdatedCount++;
+        }
+      });
+      state.data.meta.sourceMode = 'live';
+      renderAllTabs();
+    }
 
     try {
       localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify(state.data));
     } catch {}
-
-    renderOverview();
-    renderEtfList();
-    renderFxTab();
-    renderMacroTab();
-    renderPortfolioTab();
-    if (state.selectedTicker) {
-      const found = state.data.etfs.find((e) => e.ticker === state.selectedTicker);
-      if (found) renderDrawerContent(found);
-    }
 
     return { fxUpdated, etfUpdatedCount, label: nowKst.label };
   }
@@ -2200,32 +2617,15 @@
     const btn = $('#refreshBtn');
     btn.classList.add('spinning');
     btn.disabled = true;
-    showToast('지금 시각 기준으로 실시간 환율·시세를 불러오는 중...');
+    showToast('지금 시각 기준으로 실시간 최신화 중...');
 
     try {
-      // 1) 로컬 서버(start.bat) 환경이면 백엔드 스크립트 실행 시도 (최대 10초)
-      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || /^192\.168\./.test(location.hostname)) {
-        try {
-          const ctrl = new AbortController();
-          const t = setTimeout(() => ctrl.abort(), 10000);
-          const res = await fetch('/api/refresh', { method: 'POST', signal: ctrl.signal });
-          clearTimeout(t);
-          if (res.ok) {
-            await loadData(true);
-            localStorage.removeItem(LIVE_CACHE_KEY);
-            showToast(`실시간 최신화 완료! (${state.data?.meta?.updatedLabel || ''})`);
-            return;
-          }
-        } catch {}
-      }
-
-      // 2) GitHub Pages / 휴대폰 / 외부 접속: 서버 최신 JSON 먼저 확인 후 브라우저 직접 실시간 갱신
       await loadData(true);
       const r = await runBrowserLiveRefresh();
       if (r.etfUpdatedCount > 0) {
-        showToast(`지금 시각 실시간 반영 완료! (ETF ${r.etfUpdatedCount}종 · ${r.label})`);
+        showToast(`실시간 최신화 완료! (환율 + ETF ${r.etfUpdatedCount}종 · ${r.label})`);
       } else if (r.fxUpdated) {
-        showToast(`실시간 환율 반영 완료! (${r.label})`);
+        showToast(`실시간 환율·시각 반영 완료! (${r.label})`);
       } else {
         showToast(`최신 데이터 확인 완료 (${r.label})`);
       }
@@ -2307,12 +2707,22 @@
       reader.onload = () => {
         try {
           const parsed = JSON.parse(String(reader.result));
-          if (Array.isArray(parsed.buyLogs)) { state.buyLogs = parsed.buyLogs; saveBuyLogs(); }
-          if (Array.isArray(parsed.fxLogs)) { state.fxLogs = parsed.fxLogs; saveFxLogs(); }
+          if (window.SimpleShare) {
+            const mb = window.SimpleShare.mergeLogs(state.buyLogs, parsed.buyLogs || [], 'buy');
+            const mf = window.SimpleShare.mergeLogs(state.fxLogs, parsed.fxLogs || [], 'fx');
+            state.buyLogs = mb.merged;
+            state.fxLogs = mf.merged;
+            saveBuyLogs();
+            saveFxLogs();
+            showToast(`일지 ${mb.added + mf.added}건을 합쳤어요!`);
+          } else {
+            if (Array.isArray(parsed.buyLogs)) { state.buyLogs = parsed.buyLogs; saveBuyLogs(); }
+            if (Array.isArray(parsed.fxLogs)) { state.fxLogs = parsed.fxLogs; saveFxLogs(); }
+            showToast('백업한 일지를 복원했어요.');
+          }
           if (Array.isArray(parsed.favs)) { state.favs = parsed.favs; localStorage.setItem(FAV_KEY, JSON.stringify(state.favs)); }
           renderEtfList();
           renderPortfolioTab();
-          showToast('백업한 일지를 복원했어요.');
         } catch {
           showToast('올바른 백업 JSON 파일이 아닙니다.');
         }
@@ -2334,6 +2744,29 @@
       if (e.target === $('#guideModalBackdrop')) closeGuideModal();
     });
 
+    // 작성자 별명 설정 & 공유 수신 모달 이벤트
+    $('#closeShareBtn').addEventListener('click', closeShareModal);
+    $('#shareModalBackdrop').addEventListener('click', (e) => {
+      if (e.target === $('#shareModalBackdrop')) closeShareModal();
+    });
+    $('#nickSettingsForm').addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const nick = ($('#authorNicknameInput').value || '').trim() || '나';
+      state.authorNick = window.SimpleShare ? window.SimpleShare.saveNickname(nick) : nick;
+      closeShareModal();
+      renderPortfolioTab();
+      showToast(`내 별명을 [${state.authorNick}] 로 저장했어요.`);
+    });
+
+    const closeRecvBtn = $('#closeReceiveShareBtn');
+    if (closeRecvBtn) closeRecvBtn.addEventListener('click', closeReceiveShareModal);
+    const recvBackdrop = $('#receiveShareBackdrop');
+    if (recvBackdrop) {
+      recvBackdrop.addEventListener('click', (e) => {
+        if (e.target === recvBackdrop) closeReceiveShareModal();
+      });
+    }
+
     const qrInput = $('#qrUrlInput');
     if (qrInput) {
       qrInput.addEventListener('input', (e) => updateQrDisplay(e.target.value));
@@ -2353,6 +2786,8 @@
       if (e.key === 'Escape') {
         closeEtfDrawer();
         closeGuideModal();
+        closeShareModal();
+        closeReceiveShareModal();
       }
     });
 

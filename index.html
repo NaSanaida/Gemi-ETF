@@ -59,21 +59,23 @@
           <span class="eyebrow-text">오늘의 투자 판단</span>
           <span class="source-tag" id="sourceModeBadge">데일리 브리핑</span>
         </div>
-        <h1 class="hero-headline" id="heroHeadline">데이터를 불러오는 중입니다.</h1>
+        <h1 class="hero-headline" id="heroHeadline">분할 매수 · 방어 우선</h1>
+        <p class="hero-subline" id="heroSubline">데이터를 불러오는 중입니다.</p>
 
         <div class="logic-strip" id="overviewSignals"></div>
-        <div class="quick-pick-grid" id="quickPickGrid"></div>
-        <ul class="summary-lines" id="dailyBriefingList"></ul>
+        <div class="today-action-list" id="todayActionList"></div>
       </div>
 
       <div class="surface list-card">
         <div class="list-header">
           <div>
-            <h2 class="section-title">미국 ETF 신호등 <span class="count-muted" id="etfCountLabel">16</span></h2>
-            <p class="section-sub">종목을 누르면 매력 가격구간·5가지 근거·관련 뉴스 요약이 열립니다</p>
+            <h2 class="section-title">미국 ETF 신호등 <span class="count-muted" id="etfCountLabel">24</span></h2>
+            <p class="section-sub">종목을 누르면 매력 가격구간·6가지 근거·관련 뉴스 요약이 열립니다</p>
           </div>
           <select class="minimal-select" id="etfSortSelect" aria-label="정렬 기준">
             <option value="score">매력도 높은순</option>
+            <option value="flowBuy">매수 많은순 (순유입)</option>
+            <option value="flowSell">매도 많은순 (순유출)</option>
             <option value="mdd">고점 대비 낙폭순</option>
             <option value="news">호재 많은순</option>
             <option value="yield">배당 높은순</option>
@@ -84,7 +86,7 @@
         <div class="filter-controls">
           <div class="search-field">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="search" id="etfSearchInput" placeholder="QQQM, SPLG, SGOV, SCHD, 배당, 반도체 검색" aria-label="ETF 검색" />
+            <input type="search" id="etfSearchInput" placeholder="SOXL, NRGU, VT, QQQM, IEF, SGOV, 유가, 배당 검색" aria-label="ETF 검색" />
           </div>
 
           <div class="filter-rows">
@@ -94,7 +96,8 @@
               <button class="pill" data-category="대표지수" type="button">대표지수</button>
               <button class="pill" data-category="배당·인컴" type="button">배당·인컴</button>
               <button class="pill" data-category="기술·반도체" type="button">기술·반도체</button>
-              <button class="pill" data-category="채권·금" type="button">채권·금</button>
+              <button class="pill" data-category="채권·금" type="button">채권·금·원유</button>
+              <button class="pill" data-category="레버리지" type="button">레버리지 3x</button>
             </div>
             <div class="signal-seg" id="signalFilters" role="group" aria-label="신호 필터">
               <button class="seg-btn active" data-light="all" type="button">전체</button>
@@ -116,15 +119,16 @@
 
     <!-- ==================== TAB 3: 경제 · 뉴스 ==================== -->
     <section class="tab-panel" id="tab-macro">
-      <!-- 미국 핵심 경제 지표 -->
+      <!-- 미국 핵심 경제 지표 10종 (장단기 국채 · 유가 · 신용스프레드 포함) -->
       <div class="surface section-card">
         <div class="list-header">
           <div>
-            <h2 class="section-title">미국 핵심 경제 지표</h2>
-            <p class="section-sub">각 지표를 누르면 추이 그래프와 상세 분석이 열립니다 (뒤로가기로 바로 복귀)</p>
+            <h2 class="section-title">미국 핵심 경제 지표 (10종)</h2>
+            <p class="section-sub">성장·물가·장단기 국채금리·국제유가·신용위험까지 클릭해 그래프로 확인하세요</p>
           </div>
         </div>
         <div class="macro-grid" id="macroIndicatorsGrid"></div>
+        <div class="treasury-strip" id="treasuryGuideStrip"></div>
       </div>
 
       <!-- 지금 세계 경제 스토리 (4단계 인과 흐름) -->
@@ -182,22 +186,27 @@
       </div>
     </section>
 
-    <!-- ==================== TAB 4: 내 투자 (매수·환전 일지 & 포트폴리오 분석) ==================== -->
+    <!-- ==================== TAB 4: 내 투자 (매수·환전 일지 & 공유방 분석) ==================== -->
     <section class="tab-panel" id="tab-portfolio">
       <div class="surface" style="padding:16px 20px;">
         <div class="portfolio-top-bar">
           <div class="signal-seg" id="portfolioSubTabs" role="tablist">
             <button class="seg-btn active" data-sub="analysis" type="button">내 투자 분석</button>
-            <button class="seg-btn" data-sub="etflog" type="button">ETF 매수 일지</button>
+            <button class="seg-btn" data-sub="recommend" type="button">추천 조합</button>
+            <button class="seg-btn" data-sub="etflog" type="button">매수 일지</button>
             <button class="seg-btn" data-sub="fxlog" type="button">환전 일지</button>
           </div>
           <div class="portfolio-tools">
-            <span class="privacy-chip">내 기기에만 저장</span>
             <button class="ghost-btn" id="exportJournalBtn" type="button" style="height:30px; font-size:0.75rem;">백업</button>
             <button class="ghost-btn" id="importJournalBtn" type="button" style="height:30px; font-size:0.75rem;">복원</button>
             <input type="file" id="importJournalFile" accept="application/json" style="display:none;" />
           </div>
         </div>
+
+        <!-- 작성자 별명 · 공유방 상태 바 -->
+        <div class="share-bar" id="shareStatusBar"></div>
+        <!-- 작성자별 필터 칩 (2명 이상일 때 자동 표시) -->
+        <div class="author-filter-bar" id="authorFilterBar" style="display:none;"></div>
       </div>
 
       <div id="portfolioRoot" class="fx-stack"></div>
@@ -257,31 +266,73 @@
         </button>
       </div>
       <div class="dialog-body">
+        <div class="qr-stage">
+          <div class="qr-box" id="mobileQrBox" aria-label="휴대폰 접속 QR 코드"></div>
+          <div class="qr-caption">안드로이드 기본 카메라로 비추면 바로 열립니다</div>
+        </div>
+
+        <div class="sim-field">
+          <label for="qrUrlInput">QR 코드 주소 (GitHub 주소 입력 시 실시간 변경)</label>
+          <div class="copy-row" style="margin-bottom:0;">
+            <input type="url" id="qrUrlInput" value="http://localhost:8080" style="border:none; background:transparent; outline:none; width:100%; font-size:0.84rem; font-weight:600;" />
+            <button class="primary-sm-btn" id="copyMobileUrlBtn" type="button">복사</button>
+          </div>
+        </div>
+
         <div class="guide-step">
           <span class="step-num">1</span>
           <div>
-            <h3>같은 Wi-Fi 휴대폰에서 바로 보기</h3>
-            <p>PC에서 <code>start.bat</code>을 켜고 휴대폰 브라우저에 아래 주소를 입력하세요.</p>
-            <div class="copy-row">
-              <code id="mobileAccessUrl">http://localhost:8080</code>
-              <button class="primary-sm-btn" id="copyMobileUrlBtn" type="button">복사</button>
-            </div>
-            <small>브라우저 메뉴에서 <strong>홈 화면에 추가</strong>하면 앱처럼 열립니다.</small>
-          </div>
-        </div>
-        <div class="guide-step">
-          <span class="step-num">2</span>
-          <div>
-            <h3>매일 오전 자동 최신화</h3>
-            <p>GitHub Pages에 올리면 PC가 꺼져 있어도 매일 오전 7시 10분 자동으로 시세·환율·뉴스 요약본이 갱신됩니다.</p>
+            <h3>안드로이드(갤럭시) 앱처럼 설치</h3>
+            <p>카메라로 QR 스캔 → 크롬에서 열기 → 우측 상단 <strong>⋮</strong> → <strong>홈 화면에 추가</strong> (또는 <strong>앱 설치</strong>) 클릭</p>
+            <small>집 밖에서도 PC 꺼진 채로 쓰려면 위에 본인 GitHub 주소를 붙여넣고 스캔하세요.</small>
           </div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- 작성자 별명 설정 모달 (초간단) -->
+  <div class="modal-backdrop center" id="shareModalBackdrop" aria-hidden="true">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+      <div class="sheet-header">
+        <strong class="sheet-ticker" id="shareModalTitle">내 별명 설정</strong>
+        <button class="sheet-close" id="closeShareBtn" type="button" aria-label="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form class="dialog-body" id="nickSettingsForm">
+        <div class="sim-field">
+          <label for="authorNicknameInput">매수·환전 기록 시 자동으로 표시할 이름(별명)</label>
+          <input type="text" id="authorNicknameInput" maxlength="16" placeholder="예: 민수, 아빠, 지영" required />
+        </div>
+        <p style="margin:0; font-size:0.8rem; color:var(--ink-2); line-height:1.5;">
+          로그인이나 가입 없이 별명만 적어두면 내 기록마다 자동으로 붙습니다.<br/>
+          <strong>공유 링크 복사</strong>를 눌러 카톡으로 보내면 상대방과 기록을 합쳐서 같이 볼 수 있어요.
+        </p>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="primary-sm-btn" type="submit" style="padding:9px 18px; font-size:0.86rem;">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 공유받은 투자 일지 합치기 모달 -->
+  <div class="modal-backdrop center" id="receiveShareBackdrop" aria-hidden="true">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="receiveShareTitle">
+      <div class="sheet-header">
+        <strong class="sheet-ticker" id="receiveShareTitle">공유받은 투자 일지</strong>
+        <button class="sheet-close" id="closeReceiveShareBtn" type="button" aria-label="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body" id="receiveShareBody"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="./qr.js"></script>
+  <script src="./shared-sync.js"></script>
   <script src="./data/market-data.js"></script>
   <script src="./app.js"></script>
 </body>

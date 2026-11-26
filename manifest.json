@@ -1,6 +1,6 @@
 {
-  "name": "미국 ETF 신호등",
-  "short_name": "ETF 신호등",
+  "name": "제미나이 경제",
+  "short_name": "제미나이 경제",
   "description": "미국 ETF 매수 신호등, 환전 타이밍, 거시경제와 호재·악재 기사를 한눈에 확인하세요.",
   "start_url": "./index.html",
   "display": "standalone",

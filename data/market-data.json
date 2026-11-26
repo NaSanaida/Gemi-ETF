@@ -1,8 +1,8 @@
 {
     "meta":  {
-                 "updatedAt":  "2026-11-26T12:16:36+09:00",
-                 "updatedLabel":  "2026.11.26 (목) 12:16 KST",
-                 "sourceMode":  "live",
+                 "updatedAt":  "2026-11-26T14:42:02+09:00",
+                 "updatedLabel":  "2026.11.26 (목) 14:42 KST",
+                 "sourceMode":  "snapshot",
                  "dataSources":  [
                                      "Yahoo Finance",
                                      "FRED",
@@ -854,62 +854,246 @@
                                                              ]
                                      }
                                  ],
+                  "globalStory":  [
+                                      {
+                                          "step":  "1",
+                                          "stage":  "발단 · 관세 \u0026 지정학",
+                                          "light":  "red",
+                                          "title":  "미 무역법 301조 관세 + 중동·에너지 긴장",
+                                          "desc":  "수입 물가와 글로벌 공급망 비용이 다시 자극받는 출발점"
+                                      },
+                                      {
+                                          "step":  "2",
+                                          "stage":  "전개 · 미국 경기 강세",
+                                          "light":  "yellow",
+                                          "title":  "3분기 GDP 4.3% + 실업률 4.1% 탄탄",
+                                          "desc":  "경기가 너무 강해 물가(3.8%)가 쉽게 꺾이지 않는 역설 발생"
+                                      },
+                                      {
+                                          "step":  "3",
+                                          "stage":  "충격 · 연준 긴축 경계",
+                                          "light":  "red",
+                                          "title":  "12월 FOMC 인상 우려 + VIX 28 급등",
+                                          "desc":  "금리 부담이 커지며 고밸류 AI·반도체(SOXX·QQQM) 차익실현 집중"
+                                      },
+                                      {
+                                          "step":  "4",
+                                          "stage":  "자금 이동 · 현재 국면",
+                                          "light":  "green",
+                                          "title":  "배당(SCHD) · 파킹(SGOV) · 국채(TLT)로 분산",
+                                          "desc":  "환율(1,343원) 안정 속 우량 지수 분할 + 안전자산 병행 전략 우세"
+                                      }
+                                  ],
+                  "geopolitics":  [
+                                      {
+                                          "id":  "war",
+                                          "title":  "중동·러-우 전쟁 및 에너지 항로",
+                                          "status":  "긴장 유지",
+                                          "light":  "red",
+                                          "trigger":  "호르무즈·홍해 해상 물류 차질 및 국제유가($80↑) 급등 여부",
+                                          "chain":  "유가 급등 → 미국 물가(CPI) 재상승 → 금리 인하 지연 → 성장주 흔들림",
+                                          "good":  [
+                                                       "GLD",
+                                                       "SGOV"
+                                                   ],
+                                          "bad":  [
+                                                      "QQQM",
+                                                      "TLT",
+                                                      "TQQQ"
+                                                  ]
+                                      },
+                                      {
+                                          "id":  "trade",
+                                          "title":  "미·중 패권 및 대만·관세 갈등",
+                                          "status":  "경계 높음",
+                                          "light":  "red",
+                                          "trigger":  "무역법 301조 관세 품목 발표 및 첨단 반도체 수출 규제 확대",
+                                          "chain":  "공급망 재편 비용 증가 → 반도체·빅테크 마진 압박 · 아시아 파운드리 변동성",
+                                          "good":  [
+                                                       "SCHD",
+                                                       "SPLG",
+                                                       "VTI"
+                                                   ],
+                                          "bad":  [
+                                                      "SOXX",
+                                                      "SMH",
+                                                      "XLK"
+                                                  ]
+                                      },
+                                      {
+                                          "id":  "debt",
+                                          "title":  "미국 재정적자 \u0026 국채 발행 부담",
+                                          "status":  "주시 필요",
+                                          "light":  "yellow",
+                                          "trigger":  "미국 10년물 국채금리 5.0% 돌파 여부 및 국채 입찰 수요 부진",
+                                          "chain":  "국채 공급 과잉 → 장기금리 급등 → 장기채(TLT) 변동성 및 주식 할인율 압박",
+                                          "good":  [
+                                                       "SGOV",
+                                                       "GLD"
+                                                   ],
+                                          "bad":  [
+                                                      "TLT",
+                                                      "QQQ"
+                                                  ]
+                                      },
+                                      {
+                                          "id":  "fxshock",
+                                          "title":  "엔화·달러 급변 (엔캐리 청산 등)",
+                                          "status":  "보통",
+                                          "light":  "yellow",
+                                          "trigger":  "일본은행(BOJ) 금리 인상 시사 또는 달러 인덱스(DXY) 106 돌파",
+                                          "chain":  "글로벌 자금 일시 회수 → 단기 투매 발생 (직후 우량 지수 저가 매수 기회)",
+                                          "good":  [
+                                                       "SGOV",
+                                                       "JEPI"
+                                                   ],
+                                          "bad":  [
+                                                      "TQQQ",
+                                                      "SMH"
+                                                  ]
+                                      }
+                                  ],
+                  "globalSummary":  [
+                                        {
+                                            "topic":  "관세·무역",
+                                            "light":  "red",
+                                            "text":  "미국 무역법 301조(중국·EU 겨냥) 관세 추진으로 반도체·글로벌 공급망 부담 확대"
+                                        },
+                                        {
+                                            "topic":  "물가·금리",
+                                            "light":  "red",
+                                            "text":  "근원 PCE 물가 반등으로 12월 FOMC 0.25%p 추가 인상 경계감 고조"
+                                        },
+                                        {
+                                            "topic":  "자금 흐름",
+                                            "light":  "green",
+                                            "text":  "AI·반도체 차익실현 자금이 배당주(SCHD)·초단기채(SGOV)·장기국채(TLT)로 이동"
+                                        }
+                                    ],
                   "globalNews":  [
                                      {
-                                         "id":  "live-1",
-                                         "title":  "[블룸버그] System.Xml.XmlElement",
+                                         "id":  "g1",
+                                         "title":  "백악관, 중국·EU 겨냥 무역법 301조 광범위 관세 추진",
                                          "source":  "Bloomberg",
-                                         "publishedAt":  "11.26 07:10",
-                                         "sentiment":  "neutral",
-                                         "impactLevel":  "보통",
-                                         "summary":  "블룸버그 마켓 속보: 미국 증시·거시 방향성 참고 기사입니다.",
+                                         "publishedAt":  "11.25 22:10",
+                                         "sentiment":  "negative",
+                                         "impactLevel":  "높음",
+                                         "summary":  "주요 교역국 관세 확대로 공급망 비용과 물가 압력 재자극 우려",
+                                         "digest":  {
+                                                        "what":  "미국 행정부가 중국·EU 등 주요 교역국의 과잉생산을 겨냥해 무역법 301조 기반의 광범위한 추가 관세 도입을 검토하고 있습니다.",
+                                                        "impact":  "해외 생산·부품 의존도가 높은 반도체(SOXX·SMH)와 빅테크(QQQM)의 마진 압박 및 물가 재상승 우려로 작용했습니다.",
+                                                        "action":  "관세 대상 품목이 확정되기 전까지 반도체·3배 레버리지(TQQQ) 추격 매수를 피하고 현금 비중을 유지하세요."
+                                                    },
                                          "affectedEtfs":  [
-                                                              "VOO",
-                                                              "QQQ"
+                                                              "SOXX",
+                                                              "SMH",
+                                                              "QQQM",
+                                                              "TQQQ"
                                                           ],
-                                         "url":  "https://www.bloomberg.com/news/articles/2026-11-25/stock-market-today-dow-s-p-live-updates"
+                                         "url":  "https://www.bloomberg.com/search?query=Section%20301%20tariffs%20Federal%20Reserve%20stocks"
                                      },
                                      {
-                                         "id":  "live-2",
-                                         "title":  "[블룸버그] System.Xml.XmlElement",
-                                         "source":  "Bloomberg",
-                                         "publishedAt":  "11.26 11:01",
-                                         "sentiment":  "neutral",
-                                         "impactLevel":  "보통",
-                                         "summary":  "블룸버그 마켓 속보: 미국 증시·거시 방향성 참고 기사입니다.",
+                                         "id":  "g2",
+                                         "title":  "미국 10월 근원 PCE 물가 3년 만에 최고… 12월 금리 인상 경계",
+                                         "source":  "Reuters",
+                                         "publishedAt":  "11.25 18:40",
+                                         "sentiment":  "negative",
+                                         "impactLevel":  "높음",
+                                         "summary":  "연준 목표(2%)를 크게 웃돈 물가 탓에 12월 0.25%p 인상 가능성 부상",
+                                         "digest":  {
+                                                        "what":  "연준이 가장 중시하는 근원 개인소비지출(PCE) 물가가 시장 예상치를 웃돌며 3년 만에 최고 수준을 기록했습니다.",
+                                                        "impact":  "금리 인하 기대가 꺾이며 고밸류 기술주(QQQ·QQQM)가 흔들리는 반면, 고금리 이자를 받는 초단기국채(SGOV) 매력은 커졌습니다.",
+                                                        "action":  "12월 10일 CPI와 12월 16일 FOMC 전까지 여유 달러는 SGOV에 파킹해 두고 우량주만 소액 분할 매수하세요."
+                                                    },
                                          "affectedEtfs":  [
-                                                              "VOO",
-                                                              "QQQ"
+                                                              "SGOV",
+                                                              "QQQM",
+                                                              "QQQ",
+                                                              "JEPI"
                                                           ],
-                                         "url":  "https://www.bloomberg.com/news/articles/2026-11-26/copper-rebounds-from-lowest-this-year-as-volatility-hits-metals"
+                                         "url":  "https://news.google.com/search?q=%EB%A1%9C%EC%9D%B4%ED%84%B0%20%EB%AF%B8%EA%B5%AD%20PCE%20%EB%AC%BC%EA%B0%80%20%EC%97%B0%EC%A4%80%2012%EC%9B%94%20%EA%B8%88%EB%A6%AC\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                      },
                                      {
-                                         "id":  "live-3",
-                                         "title":  "[블룸버그] System.Xml.XmlElement",
-                                         "source":  "Bloomberg",
-                                         "publishedAt":  "11.26 09:50",
-                                         "sentiment":  "neutral",
-                                         "impactLevel":  "보통",
-                                         "summary":  "블룸버그 마켓 속보: 미국 증시·거시 방향성 참고 기사입니다.",
+                                         "id":  "g3",
+                                         "title":  "미국 3분기 GDP 성장률 4.3%로 대폭 상향… 경기 침체 우려 해소",
+                                         "source":  "WSJ",
+                                         "publishedAt":  "11.25 21:30",
+                                         "sentiment":  "positive",
+                                         "impactLevel":  "높음",
+                                         "summary":  "강한 소비와 기업 투자 확인으로 S\u0026P 500 대형주 실적 기초체력 입증",
+                                         "digest":  {
+                                                        "what":  "미국 3분기 실질 GDP 성장률 수정치가 기존 3.4%에서 4.3%로 크게 상향되며 탄탄한 내수 소비와 기업 투자를 확인했습니다.",
+                                                        "impact":  "경기 침체로 인한 증시 붕괴 가능성을 낮춰주며, S\u0026P 500(SPLG·VOO)과 미국 전체주식(VTI)의 중장기 우상향 근거를 강화했습니다.",
+                                                        "action":  "단기 변동성에 흔들려 전량 매도하기보다 SPLG·VOO 같은 대표 지수 적립식 분할 매수를 유지하기 좋은 근거입니다."
+                                                    },
                                          "affectedEtfs":  [
+                                                              "SPLG",
                                                               "VOO",
-                                                              "QQQ"
+                                                              "VTI",
+                                                              "SCHD"
                                                           ],
-                                         "url":  "https://www.bloomberg.com/news/articles/2026-11-26/bok-hikes-rate-on-stubborn-inflation-as-ai-boom-drives-growth"
+                                         "url":  "https://news.google.com/search?q=WSJ%20%EB%AF%B8%EA%B5%AD%203%EB%B6%84%EA%B8%B0%20GDP%20%EC%84%B1%EC%9E%A5%EB%A5%A0%20%EC%88%98%EC%A0%95%EC%B9%98\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                      },
                                      {
-                                         "id":  "live-4",
-                                         "title":  "[블룸버그] System.Xml.XmlElement",
-                                         "source":  "Bloomberg",
-                                         "publishedAt":  "11.26 04:35",
-                                         "sentiment":  "neutral",
+                                         "id":  "g4",
+                                         "title":  "기술주 급락 속 미 국채 안전자산 유입… 10년물 금리 4.84%대 하락",
+                                         "source":  "CNBC",
+                                         "publishedAt":  "11.25 06:20",
+                                         "sentiment":  "positive",
                                          "impactLevel":  "보통",
-                                         "summary":  "블룸버그 마켓 속보: 미국 증시·거시 방향성 참고 기사입니다.",
+                                         "summary":  "주식 회피 자금이 국채로 몰리며 장기채(TLT) 가격 반등 · 방어력 확인",
+                                         "digest":  {
+                                                        "what":  "나스닥과 기술주가 크게 출렁이자 위험을 피하려는 글로벌 기관 자금이 미국 국채로 유입되며 10년물 금리가 4.84%대로 내려왔습니다.",
+                                                        "impact":  "채권 금리가 하락하면 채권 가격은 오르므로, 장기국채 ETF(TLT)가 주식 하락장의 손실을 완충하는 안전판 역할을 했습니다.",
+                                                        "action":  "주식 100% 구성이 불안하다면 연 4.4%대 월이자도 나오는 TLT나 초단기 SGOV를 15~25% 섞어두세요."
+                                                    },
                                          "affectedEtfs":  [
-                                                              "VOO",
-                                                              "QQQ"
+                                                              "TLT",
+                                                              "SGOV",
+                                                              "GLD"
                                                           ],
-                                         "url":  "https://www.bloomberg.com/news/articles/2026-11-25/fed-beige-book-shows-moderate-growth-uptick-in-wage-pressures"
+                                         "url":  "https://news.google.com/search?q=CNBC%20%EB%AF%B8%EA%B5%AD%2010%EB%85%84%EB%AC%BC%20%EA%B5%AD%EC%B1%84%20%EA%B8%88%EB%A6%AC%20TLT\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
+                                     },
+                                     {
+                                         "id":  "g5",
+                                         "title":  "빅테크 AI 투자 수익성 재평가… 반도체 이탈, 배당·가치주 순환매",
+                                         "source":  "Financial Times",
+                                         "publishedAt":  "11.24 23:15",
+                                         "sentiment":  "neutral",
+                                         "impactLevel":  "높음",
+                                         "summary":  "AI 설비투자 회수 속도 논란 속 현금흐름 우량 배당 ETF(SCHD) 강세",
+                                         "digest":  {
+                                                        "what":  "빅테크 기업들의 막대한 AI 인프라 투자가 단기 이익으로 얼마나 빠르게 이어질지 의구심이 커지며 기술주 차익실현이 진행 중입니다.",
+                                                        "impact":  "반도체(SOXX·SMH)에서는 단기 자금이 빠져나간 반면, PER이 낮고 배당을 꾸준히 늘리는 SCHD와 월배당 JEPI는 견조한 흐름입니다.",
+                                                        "action":  "기술주 비중이 과도하다면 이번 기회에 SCHD·JEPI 같은 배당·방어 자산으로 균형을 맞추는 리밸런싱을 검토하세요."
+                                                    },
+                                         "affectedEtfs":  [
+                                                              "SCHD",
+                                                              "SOXX",
+                                                              "SMH",
+                                                              "JEPQ"
+                                                          ],
+                                         "url":  "https://news.google.com/search?q=FT%20AI%20%ED%88%AC%EC%9E%90%20%EC%88%98%EC%9D%B5%EC%84%B1%20%EB%B0%98%EB%8F%84%EC%B2%B4%20%EA%B0%80%EC%B9%98%EC%A3%BC%20%EC%88%9C%ED%99%98%EB%A7%A4\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
+                                     },
+                                     {
+                                         "id":  "g6",
+                                         "title":  "원/달러 환율 1,343원대 안정… 연중 고점 대비 하락해 분할 환전 유리",
+                                         "source":  "연합인포맥스",
+                                         "publishedAt":  "11.25 15:40",
+                                         "sentiment":  "positive",
+                                         "impactLevel":  "보통",
+                                         "summary":  "1년 범위 중 하위 34% 구간 · 20일/60일 이평선 아래로 달러 확보 부담 완화",
+                                         "digest":  {
+                                                        "what":  "달러 인덱스(104.1)가 숨 고르기에 들어가며 원/달러 환율이 연중 고점(1,412원) 대비 크게 낮아진 1,343원대에서 안정 흐름을 보이고 있습니다.",
+                                                        "impact":  "한국 투자자 입장에서는 달러 매입 단가 부담이 줄어들어, 지금 환전해 두면 추후 환율 반등 시 환차익 방어 효과도 기대할 수 있습니다.",
+                                                        "action":  "1,320~1,355원 구간에서는 매월 예정된 달러의 30% 이상을 꾸준히 분할 환전해 두기 좋은 타이밍입니다."
+                                                    },
+                                         "affectedEtfs":  [
+                                                              "SPLG",
+                                                              "VOO",
+                                                              "SGOV"
+                                                          ],
+                                         "url":  "https://news.google.com/search?q=%EC%9B%90%EB%8B%AC%EB%9F%AC%20%ED%99%98%EC%9C%A8%20%EB%8B%AC%EB%9F%AC%EC%9D%B8%EB%8D%B1%EC%8A%A4%20%EB%AF%B8%EA%B5%AD%EC%A3%BC%EC%8B%9D%20%ED%99%98%EC%A0%84\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                      }
                                  ],
                   "calendar":  [
@@ -1155,7 +1339,16 @@
                                       "summary":  "하락장 계좌 흔들림을 줄이는 핵심 분산 자산",
                                       "url":  "https://news.google.com/search?q=SCHD%20VOO%20%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%EB%B6%84%EC%82%B0%ED%88%AC%EC%9E%90\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  31.4,
+                                        "buyHigh":  33.21,
+                                        "fairHigh":  35.02,
+                                        "overPrice":  35.02,
+                                        "status":  "추격 주의 구간",
+                                        "light":  "red",
+                                        "note":  "52주 고점 근접 · 일괄 매수보다 눌림목 대기 권장"
+                                    }
                  },
                  {
                      "ticker":  "SGOV",
@@ -1359,7 +1552,16 @@
                                       "summary":  "현재 환율 1,343원대는 1년 하위권으로 부담 낮음",
                                       "url":  "https://news.google.com/search?q=SGOV%20%ED%99%98%EC%9C%A8%20%EB%A6%AC%EC%8A%A4%ED%81%AC\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  100.18,
+                                        "buyHigh":  100.81,
+                                        "fairHigh":  101.02,
+                                        "overPrice":  101.02,
+                                        "status":  "수시 매수 구간",
+                                        "light":  "green",
+                                        "note":  "초단기국채 특성상 가격 변동이 거의 없어 언제든 파킹 가능"
+                                    }
                  },
                  {
                      "ticker":  "SPLG",
@@ -1563,7 +1765,16 @@
                                       "summary":  "단기 변동성을 활용해 3~5회 나눠 담기 적합",
                                       "url":  "https://news.google.com/search?q=%EB%AF%B8%EA%B5%AD%20%EC%A6%9D%EC%8B%9C%20%EA%B4%80%EC%84%B8%20S%26P500\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  76.7,
+                                        "buyHigh":  82.11,
+                                        "fairHigh":  86.57,
+                                        "overPrice":  86.57,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "VOO",
@@ -1776,7 +1987,16 @@
                                       "summary":  "장기 저가 매수 수급이 꾸준히 유입 중",
                                       "url":  "https://news.google.com/search?q=VOO%20ETF%20%EC%9E%90%EA%B8%88%20%EC%9C%A0%EC%9E%85\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  600.19,
+                                        "buyHigh":  642.53,
+                                        "fairHigh":  677.45,
+                                        "overPrice":  677.45,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "VTI",
@@ -1980,7 +2200,16 @@
                                       "summary":  "장기 수익률 99% 유사, 취향 따라 선택",
                                       "url":  "https://news.google.com/search?q=VOO%20VTI%20%EB%B9%84%EA%B5%90%20%EB%AF%B8%EA%B5%AD%20ETF\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  320.35,
+                                        "buyHigh":  342.7,
+                                        "fairHigh":  361.32,
+                                        "overPrice":  361.32,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "SPY",
@@ -2175,7 +2404,16 @@
                                       "summary":  "12월 FOMC 전후 변동성을 활용한 분할 접근 유리",
                                       "url":  "https://news.google.com/search?q=SPY%2012%EC%9B%94%20FOMC%20%EA%B4%80%EC%84%B8\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  641.17,
+                                        "buyHigh":  685.58,
+                                        "fairHigh":  722.84,
+                                        "overPrice":  722.84,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "JEPI",
@@ -2379,7 +2617,16 @@
                                       "summary":  "SPLG·QQQM과 섞으면 성장·현금흐름 균형",
                                       "url":  "https://news.google.com/search?q=JEPI%20%EC%BB%A4%EB%B2%84%EB%93%9C%EC%BD%9C%20%EC%9E%A5%EB%8B%A8%EC%A0%90\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  51.89,
+                                        "buyHigh":  54.19,
+                                        "fairHigh":  57.13,
+                                        "overPrice":  57.13,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "TLT",
@@ -2583,7 +2830,16 @@
                                       "summary":  "단기 금리 5% 재돌파 위험에 분할 접근",
                                       "url":  "https://news.google.com/search?q=%EB%AF%B8%EA%B5%AD%20%EC%9D%B8%ED%94%8C%EB%A0%88%EC%9D%B4%EC%85%98%20%EA%B5%AD%EC%B1%84%20%EA%B8%88%EB%A6%AC%20TLT\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  79.99,
+                                        "buyHigh":  85.95,
+                                        "fairHigh":  91.37,
+                                        "overPrice":  91.37,
+                                        "status":  "적극 분할 구간",
+                                        "light":  "green",
+                                        "note":  "200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간"
+                                    }
                  },
                  {
                      "ticker":  "JEPQ",
@@ -2787,7 +3043,16 @@
                                       "summary":  "일괄 매수보다 나스닥 과매도 구간 분할 접근",
                                       "url":  "https://news.google.com/search?q=JEPQ%20%ED%95%98%EB%9D%BD%EC%9E%A5%20%EB%A6%AC%EC%8A%A4%ED%81%AC\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  48.69,
+                                        "buyHigh":  52.32,
+                                        "fairHigh":  56.16,
+                                        "overPrice":  56.16,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "QQQM",
@@ -2991,7 +3256,16 @@
                                       "summary":  "200일 이동평균선 부근 반등 지지력 주목",
                                       "url":  "https://news.google.com/search?q=QQQM%20RSI%20%EA%B3%BC%EB%A7%A4%EB%8F%84%20%EB%B6%84%ED%95%A0%EB%A7%A4%EC%88%98\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  237.73,
+                                        "buyHigh":  255.43,
+                                        "fairHigh":  279.75,
+                                        "overPrice":  279.75,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "GLD",
@@ -3195,7 +3469,16 @@
                                       "summary":  "구조적 수요가 급락 하방을 받쳐줌",
                                       "url":  "https://news.google.com/search?q=%EC%A4%91%EC%95%99%EC%9D%80%ED%96%89%20%EA%B8%88%20%EB%A7%A4%EC%9E%85%20GLD\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  293.66,
+                                        "buyHigh":  315.52,
+                                        "fairHigh":  349.01,
+                                        "overPrice":  349.01,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "QQQ",
@@ -3409,7 +3692,16 @@
                                       "summary":  "주가 조정과 달리 핵심 실적은 견고",
                                       "url":  "https://news.google.com/search?q=%EB%AF%B8%EA%B5%AD%20%EB%B9%85%ED%85%8C%ED%81%AC%20%ED%81%B4%EB%9D%BC%EC%9A%B0%EB%93%9C%20AI%20%EC%8B%A4%EC%A0%81\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  572.55,
+                                        "buyHigh":  615.19,
+                                        "fairHigh":  673.37,
+                                        "overPrice":  673.37,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "XLK",
@@ -3612,7 +3904,16 @@
                                       "summary":  "방향성 확인 전 소액 분할 대응 권장",
                                       "url":  "https://news.google.com/search?q=XLK%2012%EC%9B%94%20FOMC%20%EA%B8%B0%EC%88%A0%EC%A3%BC%20%EC%A0%84%EB%A7%9D\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  145.61,
+                                        "buyHigh":  156.45,
+                                        "fairHigh":  171.88,
+                                        "overPrice":  171.88,
+                                        "status":  "적정 적립 구간",
+                                        "light":  "yellow",
+                                        "note":  "고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음"
+                                    }
                  },
                  {
                      "ticker":  "SOXX",
@@ -3825,7 +4126,16 @@
                                       "summary":  "성급한 일괄 매수보다 추세 안정 확인",
                                       "url":  "https://news.google.com/search?q=%EB%AF%B8%EA%B5%AD%20%EB%B0%98%EB%8F%84%EC%B2%B4%20ETF%20%ED%88%AC%EC%9E%90%20%EC%A0%84%EB%9E%B5\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  119.76,
+                                        "buyHigh":  128.67,
+                                        "fairHigh":  145.11,
+                                        "overPrice":  145.11,
+                                        "status":  "적극 분할 구간",
+                                        "light":  "green",
+                                        "note":  "200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간"
+                                    }
                  },
                  {
                      "ticker":  "SMH",
@@ -4029,7 +4339,16 @@
                                       "summary":  "악재 진정 후 가장 빠른 반등 탄력 기대",
                                       "url":  "https://news.google.com/search?q=SMH%20AI%20%EB%B0%98%EB%8F%84%EC%B2%B4%20%EC%9E%A5%EA%B8%B0%20%EC%A0%84%EB%A7%9D\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  415.95,
+                                        "buyHigh":  446.92,
+                                        "fairHigh":  499.36,
+                                        "overPrice":  499.36,
+                                        "status":  "적극 분할 구간",
+                                        "light":  "green",
+                                        "note":  "200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간"
+                                    }
                  },
                  {
                      "ticker":  "TQQQ",
@@ -4233,7 +4552,16 @@
                                       "summary":  "장기 적립보다 단기 반등 확인 후 소액 접근 영역",
                                       "url":  "https://news.google.com/search?q=TQQQ%20RSI%20%EA%B3%BC%EB%A7%A4%EB%8F%84\u0026hl=ko\u0026gl=KR\u0026ceid=KR:ko"
                                   }
-                              ]
+                              ],
+                     "priceZones":  {
+                                        "buyLow":  46.44,
+                                        "buyHigh":  49.89,
+                                        "fairHigh":  62.86,
+                                        "overPrice":  62.86,
+                                        "status":  "적극 분할 구간",
+                                        "light":  "green",
+                                        "note":  "200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간"
+                                    }
                  }
              ]
 }

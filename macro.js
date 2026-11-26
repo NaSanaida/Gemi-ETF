@@ -20,7 +20,7 @@
   function bindBackButton() {
     const btn = $('#backToMacroBtn');
     const lbl = $('#backBtnLabel');
-    if (lbl) lbl.textContent = fromTab === 'dashboard' ? 'ETF 홈' : '핵심 경제지표';
+    if (lbl) lbl.textContent = fromTab === 'dashboard' ? '제미나이 경제' : '핵심 경제지표';
     if (btn) {
       btn.addEventListener('click', () => {
         if (document.referrer && document.referrer.includes('index.html') && history.length > 1) {
@@ -213,7 +213,7 @@
 
   function renderDetail() {
     const ind = marketData.macro.indicators.find((x) => x.id === currentId) || marketData.macro.indicators[0];
-    document.title = `${ind.name} 상세 분석 — ETF 신호등`;
+    document.title = `${ind.name} 상세 분석 — 제미나이 경제`;
     $('#macroUpdatedLabel').textContent = marketData.meta.updatedLabel;
 
     const unit = ind.unit === 'pt' ? '' : ind.unit || '';

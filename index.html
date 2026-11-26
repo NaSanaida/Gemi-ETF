@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="description" content="미국 ETF 16종 매수 신호등, 원/달러 환전 타이밍, 미국 경제지표 그래프 분석과 호재·악재 기사를 한눈에 확인하세요." />
-  <title>미국 ETF 신호등 — 매일 환전 · 매수 판단 브리핑</title>
+  <meta name="description" content="미국 ETF 16종 매수 신호등, 매력 가격구간, 환전 타이밍, 글로벌 스토리, 매수·환전 일지와 포트폴리오 분석을 한눈에 확인하세요." />
+  <title>제미나이 경제 — 미국 ETF · 환전 · 거시 브리핑</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/svg+xml" href="./icon.svg" />
   <link rel="stylesheet" href="./styles.css" />
@@ -22,24 +22,25 @@
           <i class="bdot green"></i>
         </span>
         <span class="brand-text">
-          <strong>ETF 신호등</strong>
+          <strong>제미나이 경제</strong>
           <small id="updatedLabel">불러오는 중</small>
         </span>
       </button>
 
-      <!-- 데스크톱 언더라인 탭 -->
+      <!-- 데스크톱 언더라인 탭 (4개) -->
       <nav class="desktop-nav" aria-label="주요 메뉴">
         <button class="nav-btn active" data-tab="dashboard" type="button">홈</button>
         <button class="nav-btn" data-tab="fx" type="button">환전</button>
         <button class="nav-btn" data-tab="macro" type="button">경제 · 뉴스</button>
+        <button class="nav-btn" data-tab="portfolio" type="button">내 투자</button>
       </nav>
 
       <div class="topbar-actions">
-        <button class="ghost-btn" id="mobileGuideBtn" type="button" title="휴대폰 연결 안내">
+        <button class="ghost-btn" id="mobileGuideBtn" type="button" title="휴대폰 연결 안내" aria-label="휴대폰 연결 안내">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
           <span class="btn-label">휴대폰</span>
         </button>
-        <button class="ghost-btn accent" id="refreshBtn" type="button" title="최신 시세·뉴스 불러오기">
+        <button class="ghost-btn accent" id="refreshBtn" type="button" title="최신 시세·뉴스 불러오기" aria-label="최신화">
           <svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
           <span class="btn-label">최신화</span>
         </button>
@@ -53,7 +54,6 @@
   <main class="container main-wrap">
     <!-- ==================== TAB 1: 홈 ==================== -->
     <section class="tab-panel active" id="tab-dashboard">
-      <!-- 오늘의 한눈에 결론 카드 -->
       <div class="surface hero-card">
         <div class="hero-eyebrow">
           <span class="eyebrow-text">오늘의 투자 판단</span>
@@ -61,22 +61,16 @@
         </div>
         <h1 class="hero-headline" id="heroHeadline">데이터를 불러오는 중입니다.</h1>
 
-        <!-- 3단 핵심 판단 스트립 -->
         <div class="logic-strip" id="overviewSignals"></div>
-
-        <!-- 오늘 바로 고르기 (목적별 3분류 퀵픽) -->
         <div class="quick-pick-grid" id="quickPickGrid"></div>
-
-        <!-- 3줄 핵심 정리 -->
         <ul class="summary-lines" id="dailyBriefingList"></ul>
       </div>
 
-      <!-- 미국 ETF 16종 신호등 리스트 -->
       <div class="surface list-card">
         <div class="list-header">
           <div>
             <h2 class="section-title">미국 ETF 신호등 <span class="count-muted" id="etfCountLabel">16</span></h2>
-            <p class="section-sub">종목을 누르면 5가지 근거·관련 기사·매수 전략이 열립니다</p>
+            <p class="section-sub">종목을 누르면 매력 가격구간·5가지 근거·관련 뉴스 요약이 열립니다</p>
           </div>
           <select class="minimal-select" id="etfSortSelect" aria-label="정렬 기준">
             <option value="score">매력도 높은순</option>
@@ -122,6 +116,7 @@
 
     <!-- ==================== TAB 3: 경제 · 뉴스 ==================== -->
     <section class="tab-panel" id="tab-macro">
+      <!-- 미국 핵심 경제 지표 -->
       <div class="surface section-card">
         <div class="list-header">
           <div>
@@ -132,22 +127,50 @@
         <div class="macro-grid" id="macroIndicatorsGrid"></div>
       </div>
 
+      <!-- 지금 세계 경제 스토리 (4단계 인과 흐름) -->
       <div class="surface section-card">
         <div class="list-header">
           <div>
-            <h2 class="section-title">국제 정황 주요 뉴스</h2>
-            <p class="section-sub">영향받는 ETF를 누르면 바로 상세 분석으로 이동합니다</p>
-          </div>
-          <div class="signal-seg" id="macroNewsFilter">
-            <button class="seg-btn active" data-sent="all" type="button">전체</button>
-            <button class="seg-btn" data-sent="positive" type="button"><i class="sdot green"></i>호재</button>
-            <button class="seg-btn" data-sent="negative" type="button"><i class="sdot red"></i>악재</button>
-            <button class="seg-btn" data-sent="neutral" type="button"><i class="sdot yellow"></i>중립</button>
+            <h2 class="section-title">지금 세계 경제 스토리</h2>
+            <p class="section-sub">현재 시장이 왜 흔들리는지 4단계 인과 흐름으로 한눈에 이해하세요</p>
           </div>
         </div>
+        <div class="story-flow" id="globalStoryFlow"></div>
+      </div>
+
+      <!-- 전쟁 · 지정학 · 돌발 변수 부가 가이드 -->
+      <div class="surface section-card">
+        <div class="list-header">
+          <div>
+            <h2 class="section-title">전쟁 · 지정학 · 돌발 변수 체크</h2>
+            <p class="section-sub">경제 지표 외에 증시와 환율을 흔드는 글로벌 리스크와 영향 ETF</p>
+          </div>
+        </div>
+        <div class="geo-grid" id="geopoliticsGrid"></div>
+      </div>
+
+      <!-- 국제 정황 뉴스 요약본 -->
+      <div class="surface section-card">
+        <div class="list-header">
+          <div>
+            <h2 class="section-title">국제 정황 뉴스 요약본</h2>
+            <p class="section-sub">외부 사이트 이동 없이 제목을 누르면 핵심·영향·대응 요약이 바로 펼쳐집니다</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button class="ghost-btn" id="toggleAllNewsBtn" type="button" style="height:32px; font-size:0.78rem;">전체 펼치기</button>
+            <div class="signal-seg" id="macroNewsFilter">
+              <button class="seg-btn active" data-sent="all" type="button">전체</button>
+              <button class="seg-btn" data-sent="positive" type="button"><i class="sdot green"></i>호재</button>
+              <button class="seg-btn" data-sent="negative" type="button"><i class="sdot red"></i>악재</button>
+              <button class="seg-btn" data-sent="neutral" type="button"><i class="sdot yellow"></i>중립</button>
+            </div>
+          </div>
+        </div>
+        <div class="global-brief-box" id="globalBriefBox"></div>
         <div class="news-feed" id="globalNewsList"></div>
       </div>
 
+      <!-- 다가오는 주요 일정 -->
       <div class="surface section-card">
         <div class="list-header">
           <div>
@@ -159,12 +182,33 @@
       </div>
     </section>
 
+    <!-- ==================== TAB 4: 내 투자 (매수·환전 일지 & 포트폴리오 분석) ==================== -->
+    <section class="tab-panel" id="tab-portfolio">
+      <div class="surface" style="padding:16px 20px;">
+        <div class="portfolio-top-bar">
+          <div class="signal-seg" id="portfolioSubTabs" role="tablist">
+            <button class="seg-btn active" data-sub="analysis" type="button">내 투자 분석</button>
+            <button class="seg-btn" data-sub="etflog" type="button">ETF 매수 일지</button>
+            <button class="seg-btn" data-sub="fxlog" type="button">환전 일지</button>
+          </div>
+          <div class="portfolio-tools">
+            <span class="privacy-chip">내 기기에만 저장</span>
+            <button class="ghost-btn" id="exportJournalBtn" type="button" style="height:30px; font-size:0.75rem;">백업</button>
+            <button class="ghost-btn" id="importJournalBtn" type="button" style="height:30px; font-size:0.75rem;">복원</button>
+            <input type="file" id="importJournalFile" accept="application/json" style="display:none;" />
+          </div>
+        </div>
+      </div>
+
+      <div id="portfolioRoot" class="fx-stack"></div>
+    </section>
+
     <footer class="footer-note">
-      본 화면의 신호등·점수·기사 분류는 공개된 시장 데이터 기반의 참고 정보이며, 투자 권유가 아닙니다. 최종 투자 판단과 책임은 본인에게 있습니다.
+      본 화면의 신호등·가격구간·요약은 공개된 시장 데이터 기반의 참고 정보이며, 투자 권유가 아닙니다. 매수·환전 일지 기록은 외부로 전송되지 않고 본인 기기 브라우저에만 저장됩니다.
     </footer>
   </main>
 
-  <!-- 모바일 하단 탭바 -->
+  <!-- 모바일 하단 탭바 (4대 핵심 탭) -->
   <nav class="mobile-bottom-nav" aria-label="모바일 하단 메뉴">
     <button class="m-tab active" data-tab="dashboard" type="button">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>
@@ -178,9 +222,9 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       <span>경제·뉴스</span>
     </button>
-    <button class="m-tab" id="mobileGuideTab" type="button">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-      <span>연결</span>
+    <button class="m-tab" data-tab="portfolio" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      <span>내 투자</span>
     </button>
   </nav>
 
@@ -229,7 +273,7 @@
           <span class="step-num">2</span>
           <div>
             <h3>매일 오전 자동 최신화</h3>
-            <p><code>scripts/register-daily-task.ps1</code> 실행 시 매일 오전 7시 30분 자동 갱신됩니다. GitHub Pages로 올리면 PC가 꺼져 있어도 외부에서 볼 수 있어요.</p>
+            <p>GitHub Pages에 올리면 PC가 꺼져 있어도 매일 오전 7시 10분 자동으로 시세·환율·뉴스 요약본이 갱신됩니다.</p>
           </div>
         </div>
       </div>

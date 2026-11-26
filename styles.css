@@ -79,6 +79,8 @@ html, body {
   color: var(--ink-1);
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
   line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -377,41 +379,163 @@ a {
   word-break: keep-all;
 }
 
-/* 3단 논리 스트립 */
+/* 3단 논리 시각화 카드 그리드 */
 .logic-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  background: var(--surface-sub);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-bottom: 18px;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 .logic-cell {
-  padding: 15px 16px;
-  border: none;
-  background: transparent;
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-sub);
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  position: relative;
-  transition: background 0.15s ease;
-}
-
-.logic-cell:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 16px;
-  bottom: 16px;
-  width: 1px;
-  background: var(--divider);
+  justify-content: space-between;
+  gap: 8px;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
 }
 
 .logic-cell:hover {
-  background: var(--surface-hover);
+  transform: translateY(-2px);
+  border-color: var(--blue);
+  background: var(--surface);
+}
+
+.viz-val-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.viz-delta {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.viz-delta.good, .good { color: var(--green); }
+.viz-delta.bad, .bad { color: var(--red); }
+
+.viz-chart-box {
+  margin: 2px 0;
+}
+
+.viz-gauge-box {
+  display: flex;
+  justify-content: center;
+  margin: -2px 0 -4px;
+}
+
+.mini-viz-svg {
+  display: block;
+  overflow: visible;
+}
+
+.mini-range-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mini-range-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--divider);
+}
+
+.mini-range-fill {
+  height: 100%;
+  border-radius: 999px;
+  opacity: 0.45;
+}
+
+.mini-range-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--ink-1);
+}
+
+.mini-range-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.69rem;
+  color: var(--ink-3);
+}
+
+.mini-range-labels strong {
+  color: var(--ink-1);
+  font-weight: 700;
+}
+
+.vix-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.vix-compare-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.ref-bar-track {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--divider);
+  overflow: visible;
+  flex: 1;
+}
+
+.ref-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.ref-bar-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--blue);
+  border-radius: 2px;
+}
+
+.dual-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dual-bar-row {
+  display: grid;
+  grid-template-columns: 62px 1fr 28px;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.71rem;
+  color: var(--ink-2);
+}
+
+.dual-bar-row em {
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
 }
 
 .logic-top {
@@ -686,6 +810,8 @@ a {
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--ink-3);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .etf-meta-line {
@@ -940,7 +1066,8 @@ a {
 .explain-key {
   font-weight: 700;
   color: var(--ink-1);
-  width: 52px;
+  width: 66px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
@@ -953,6 +1080,8 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 
@@ -1165,6 +1294,8 @@ a {
   color: var(--ink-3);
   font-size: 0.82rem;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sim-body {
@@ -1462,13 +1593,13 @@ a {
   }
 
   .desktop-nav,
-  #mobileGuideBtn,
-  .ghost-btn .btn-label {
+  .topbar-actions .ghost-btn .btn-label {
     display: none;
   }
 
-  .ghost-btn {
+  .topbar-actions .ghost-btn {
     width: 36px;
+    height: 36px;
     padding: 0;
     justify-content: center;
   }
@@ -1491,15 +1622,6 @@ a {
 
   .logic-strip {
     grid-template-columns: 1fr;
-  }
-
-  .logic-cell:not(:last-child)::after {
-    left: 16px;
-    right: 16px;
-    top: auto;
-    bottom: 0;
-    width: auto;
-    height: 1px;
   }
 
   .etf-row {
@@ -1737,6 +1859,7 @@ a {
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--blue);
+  white-space: nowrap;
 }
 
 /* macro.html 전용 요소 */
@@ -1769,9 +1892,563 @@ a {
   color: var(--ink-1);
 }
 
+/* 인앱 국제 정황 30초 브리핑 & 기사 3포인트 요약 아코디언 */
+.global-brief-box {
+  padding: 15px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sub);
+  margin-bottom: 14px;
+}
+
+.gb-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--blue);
+  margin-bottom: 10px;
+}
+
+.gb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gb-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 0.85rem;
+  color: var(--ink-1);
+  line-height: 1.45;
+}
+
+.news-digest-item {
+  padding: 14px 0;
+}
+
+.news-summary-trigger {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.news-summary-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.news-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.news-chev {
+  color: var(--ink-3);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+
+.news-digest-item[open] .news-chev {
+  transform: rotate(180deg);
+  color: var(--blue);
+}
+
+.news-summary-trigger:hover .news-title {
+  color: var(--blue);
+}
+
+.digest-panel {
+  margin-top: 12px;
+  padding: 13px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sub);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.digest-row {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.digest-row strong {
+  color: var(--ink-1);
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding-top: 1px;
+}
+
+.digest-etfs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider);
+}
+
+/* ==================== 매력 가격구간 · 글로벌 스토리 · 전쟁/지정학 · 내 투자 ==================== */
+.price-zone-card {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sub);
+  margin-bottom: 12px;
+}
+
+.pz-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+.pz-bar-wrap {
+  position: relative;
+  padding: 6px 0;
+  margin-bottom: 10px;
+}
+
+.pz-bar {
+  display: flex;
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.pz-seg.green { background: var(--green-dot); }
+.pz-seg.yellow { background: var(--yellow-dot); }
+.pz-seg.red { background: var(--red-dot); }
+
+.pz-pin {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid var(--ink-1);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+}
+
+.pz-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pz-box {
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pz-box span {
+  font-size: 0.71rem;
+  font-weight: 700;
+}
+.pz-box.green span { color: var(--green); }
+.pz-box.yellow span { color: var(--yellow); }
+.pz-box.red span { color: var(--red); }
+
+.pz-box strong {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.pz-note {
+  margin-top: 8px;
+  font-size: 0.77rem;
+  color: var(--ink-2);
+}
+
+/* 글로벌 4단계 스토리 흐름 */
+.story-flow {
+  display: flex;
+  flex-direction: column;
+}
+
+.story-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 16px;
+}
+
+.story-step:last-child {
+  padding-bottom: 0;
+}
+
+.story-step:not(:last-child) .story-rail::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 28px;
+  bottom: 0;
+  width: 2px;
+  background: var(--divider);
+}
+
+.story-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
+}
+
+.story-num.green { background: var(--green-bg); color: var(--green); }
+.story-num.yellow { background: var(--yellow-bg); color: var(--yellow); }
+.story-num.red { background: var(--red-bg); color: var(--red); }
+
+.story-stage {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.story-title {
+  display: block;
+  font-size: 0.94rem;
+  font-weight: 800;
+  margin: 2px 0 3px;
+}
+
+.story-desc {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--ink-2);
+}
+
+/* 전쟁 · 지정학 카드 */
+.geo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.geo-card {
+  padding: 15px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sub);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.geo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.geo-head strong {
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.geo-line {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 8px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.geo-line span {
+  font-weight: 800;
+  color: var(--ink-3);
+  font-size: 0.74rem;
+}
+
+.geo-line p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.geo-etfs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid var(--divider);
+}
+
+.geo-etf-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.geo-etf-group small {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+/* 내 투자 탭 & 일지 */
+.portfolio-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.portfolio-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.privacy-chip {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-bg);
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+
+.alloc-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-sub);
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.alloc-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.alloc-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  margin-right: 5px;
+}
+
+.jf-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.muted-preview {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.journal-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.j-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--divider);
+}
+
+.j-row:first-child {
+  border-top: none;
+  padding-top: 2px;
+}
+
+.j-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.del-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.del-btn:hover {
+  color: var(--red);
+}
+
 @media (max-width: 720px) {
+  /* 한국어 단어 중간 잘림 방지 + 아이폰 입력창 자동 확대(16px 미만) 방지 */
+  h1, h2, h3, h4, p, li, .section-sub, .logic-sub, .macro-tile-desc,
+  .story-title, .story-desc, .geo-card, .digest-row, .pz-note, .compare-tip {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  input, select {
+    font-size: 16px !important;
+  }
+
+  /* 모바일 글자 크기 · 줄간격 · 터치 영역 최적화 */
+  .hero-headline {
+    font-size: 1.24rem;
+    line-height: 1.42;
+  }
+
+  .section-title {
+    font-size: 1.12rem;
+  }
+
+  .section-sub {
+    font-size: 0.84rem;
+    line-height: 1.48;
+  }
+
+  .summary-lines li,
+  .gb-list li,
+  .story-desc,
+  .news-impact,
+  .digest-row {
+    font-size: 0.88rem;
+    line-height: 1.56;
+  }
+
+  .news-title {
+    font-size: 0.96rem;
+    line-height: 1.46;
+  }
+
+  .mini-range-labels,
+  .vix-compare-head,
+  .dual-bar-row,
+  .viz-delta {
+    font-size: 0.77rem;
+  }
+
+  .dual-bar-row {
+    grid-template-columns: 72px 1fr 32px;
+  }
+
+  /* 360px 소형 폰에서도 ETF 이름이 잘리지 않도록 균형 조정 */
+  .etf-row {
+    padding: 14px 6px;
+    margin: 0 -6px;
+  }
+
+  .etf-row-left {
+    gap: 8px;
+  }
+
+  .ticker-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.7rem;
+  }
+
+  .etf-name-top strong {
+    font-size: 0.93rem;
+  }
+
+  .row-price {
+    font-size: 0.95rem;
+  }
+
+  .row-delta {
+    font-size: 0.82rem;
+  }
+
+  .row-krw {
+    font-size: 0.75rem;
+  }
+
+  .pill {
+    padding: 8px 13px;
+    font-size: 0.84rem;
+  }
+
+  .seg-btn {
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+
+  .m-tab {
+    font-size: 0.73rem;
+    padding: 2px 0;
+  }
+
+  /* 모바일 경제지표 상세 그래프 여백 최적화 */
+  #macroChartStage {
+    height: 195px !important;
+  }
+
+  .macro-tile {
+    padding: 13px 12px;
+  }
+
+  .macro-tile-val {
+    font-size: 1.18rem;
+  }
+
+  .macro-tile-desc {
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
   .quick-pick-grid,
-  .decision-strip {
+  .decision-strip,
+  .geo-grid,
+  .jf-grid,
+  .pz-grid {
     grid-template-columns: 1fr;
+  }
+
+  .gb-list li {
+    flex-direction: column;
+    gap: 4px;
   }
 }

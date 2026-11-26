@@ -272,41 +272,115 @@ $data = [ordered]@{
                 )
             }
         )
+        globalStory = @(
+            [ordered]@{ step = '1'; stage = '발단 · 관세 & 지정학'; light = 'red'; title = '미 무역법 301조 관세 + 중동·에너지 긴장'; desc = '수입 물가와 글로벌 공급망 비용이 다시 자극받는 출발점' },
+            [ordered]@{ step = '2'; stage = '전개 · 미국 경기 강세'; light = 'yellow'; title = '3분기 GDP 4.3% + 실업률 4.1% 탄탄'; desc = '경기가 너무 강해 물가(3.8%)가 쉽게 꺾이지 않는 역설 발생' },
+            [ordered]@{ step = '3'; stage = '충격 · 연준 긴축 경계'; light = 'red'; title = '12월 FOMC 인상 우려 + VIX 28 급등'; desc = '금리 부담이 커지며 고밸류 AI·반도체(SOXX·QQQM) 차익실현 집중' },
+            [ordered]@{ step = '4'; stage = '자금 이동 · 현재 국면'; light = 'green'; title = '배당(SCHD) · 파킹(SGOV) · 국채(TLT)로 분산'; desc = '환율(1,343원) 안정 속 우량 지수 분할 + 안전자산 병행 전략 우세' }
+        )
+        geopolitics = @(
+            [ordered]@{
+                id = 'war'; title = '중동·러-우 전쟁 및 에너지 항로'; status = '긴장 유지'; light = 'red'
+                trigger = '호르무즈·홍해 해상 물류 차질 및 국제유가($80↑) 급등 여부'
+                chain = '유가 급등 → 미국 물가(CPI) 재상승 → 금리 인하 지연 → 성장주 흔들림'
+                good = @('GLD', 'SGOV'); bad = @('QQQM', 'TLT', 'TQQQ')
+            },
+            [ordered]@{
+                id = 'trade'; title = '미·중 패권 및 대만·관세 갈등'; status = '경계 높음'; light = 'red'
+                trigger = '무역법 301조 관세 품목 발표 및 첨단 반도체 수출 규제 확대'
+                chain = '공급망 재편 비용 증가 → 반도체·빅테크 마진 압박 · 아시아 파운드리 변동성'
+                good = @('SCHD', 'SPLG', 'VTI'); bad = @('SOXX', 'SMH', 'XLK')
+            },
+            [ordered]@{
+                id = 'debt'; title = '미국 재정적자 & 국채 발행 부담'; status = '주시 필요'; light = 'yellow'
+                trigger = '미국 10년물 국채금리 5.0% 돌파 여부 및 국채 입찰 수요 부진'
+                chain = '국채 공급 과잉 → 장기금리 급등 → 장기채(TLT) 변동성 및 주식 할인율 압박'
+                good = @('SGOV', 'GLD'); bad = @('TLT', 'QQQ')
+            },
+            [ordered]@{
+                id = 'fxshock'; title = '엔화·달러 급변 (엔캐리 청산 등)'; status = '보통'; light = 'yellow'
+                trigger = '일본은행(BOJ) 금리 인상 시사 또는 달러 인덱스(DXY) 106 돌파'
+                chain = '글로벌 자금 일시 회수 → 단기 투매 발생 (직후 우량 지수 저가 매수 기회)'
+                good = @('SGOV', 'JEPI'); bad = @('TQQQ', 'SMH')
+            }
+        )
+        globalSummary = @(
+            [ordered]@{ topic = '관세·무역'; light = 'red'; text = '미국 무역법 301조(중국·EU 겨냥) 관세 추진으로 반도체·글로벌 공급망 부담 확대' },
+            [ordered]@{ topic = '물가·금리'; light = 'red'; text = '근원 PCE 물가 반등으로 12월 FOMC 0.25%p 추가 인상 경계감 고조' },
+            [ordered]@{ topic = '자금 흐름'; light = 'green'; text = 'AI·반도체 차익실현 자금이 배당주(SCHD)·초단기채(SGOV)·장기국채(TLT)로 이동' }
+        )
         globalNews = @(
             [ordered]@{
-                id = 'g1'; title = '[블룸버그] 백악관, 중국·EU 겨냥 무역법 301조 관세 추진… 연준 긴축 경계 강화'
+                id = 'g1'; title = '백악관, 중국·EU 겨냥 무역법 301조 광범위 관세 추진'
                 source = 'Bloomberg'; publishedAt = '11.25 22:10'; sentiment = 'negative'; impactLevel = '높음'
-                summary = '공급망 비용 상승과 인플레이션 자극 우려로 반도체·기술주 부담'
+                summary = '주요 교역국 관세 확대로 공급망 비용과 물가 압력 재자극 우려'
+                digest = [ordered]@{
+                    what   = '미국 행정부가 중국·EU 등 주요 교역국의 과잉생산을 겨냥해 무역법 301조 기반의 광범위한 추가 관세 도입을 검토하고 있습니다.'
+                    impact = '해외 생산·부품 의존도가 높은 반도체(SOXX·SMH)와 빅테크(QQQM)의 마진 압박 및 물가 재상승 우려로 작용했습니다.'
+                    action = '관세 대상 품목이 확정되기 전까지 반도체·3배 레버리지(TQQQ) 추격 매수를 피하고 현금 비중을 유지하세요.'
+                }
                 affectedEtfs = @('SOXX', 'SMH', 'QQQM', 'TQQQ')
                 url = BloombergUrl('Section 301 tariffs Federal Reserve stocks')
             },
             [ordered]@{
-                id = 'g2'; title = '[블룸버그] 미국 근원 PCE 물가 3년 만에 최고… 12월 FOMC 금리 인상 가능성 확대'
-                source = 'Bloomberg'; publishedAt = '11.25 18:40'; sentiment = 'negative'; impactLevel = '높음'
-                summary = '고밸류 기술주 압박, 초단기채(SGOV)·배당주(SCHD) 선호'
+                id = 'g2'; title = '미국 10월 근원 PCE 물가 3년 만에 최고… 12월 금리 인상 경계'
+                source = 'Reuters'; publishedAt = '11.25 18:40'; sentiment = 'negative'; impactLevel = '높음'
+                summary = '연준 목표(2%)를 크게 웃돈 물가 탓에 12월 0.25%p 인상 가능성 부상'
+                digest = [ordered]@{
+                    what   = '연준이 가장 중시하는 근원 개인소비지출(PCE) 물가가 시장 예상치를 웃돌며 3년 만에 최고 수준을 기록했습니다.'
+                    impact = '금리 인하 기대가 꺾이며 고밸류 기술주(QQQ·QQQM)가 흔들리는 반면, 고금리 이자를 받는 초단기국채(SGOV) 매력은 커졌습니다.'
+                    action = '12월 10일 CPI와 12월 16일 FOMC 전까지 여유 달러는 SGOV에 파킹해 두고 우량주만 소액 분할 매수하세요.'
+                }
                 affectedEtfs = @('SGOV', 'QQQM', 'QQQ', 'JEPI')
-                url = BloombergUrl('US PCE inflation Federal Reserve December rate')
+                url = NewsUrl('로이터 미국 PCE 물가 연준 12월 금리')
             },
             [ordered]@{
-                id = 'g3'; title = '미국 3분기 GDP 4.3%로 대폭 상향, 소비·기업투자 호조'
-                source = '미 상무부'; publishedAt = '11.25 21:30'; sentiment = 'positive'; impactLevel = '높음'
-                summary = '침체 우려 해소, 미국 대표지수·배당주 실적 지지'
+                id = 'g3'; title = '미국 3분기 GDP 성장률 4.3%로 대폭 상향… 경기 침체 우려 해소'
+                source = 'WSJ'; publishedAt = '11.25 21:30'; sentiment = 'positive'; impactLevel = '높음'
+                summary = '강한 소비와 기업 투자 확인으로 S&P 500 대형주 실적 기초체력 입증'
+                digest = [ordered]@{
+                    what   = '미국 3분기 실질 GDP 성장률 수정치가 기존 3.4%에서 4.3%로 크게 상향되며 탄탄한 내수 소비와 기업 투자를 확인했습니다.'
+                    impact = '경기 침체로 인한 증시 붕괴 가능성을 낮춰주며, S&P 500(SPLG·VOO)과 미국 전체주식(VTI)의 중장기 우상향 근거를 강화했습니다.'
+                    action = '단기 변동성에 흔들려 전량 매도하기보다 SPLG·VOO 같은 대표 지수 적립식 분할 매수를 유지하기 좋은 근거입니다.'
+                }
                 affectedEtfs = @('SPLG', 'VOO', 'VTI', 'SCHD')
-                url = NewsUrl('미국 3분기 GDP 성장률 수정치')
+                url = NewsUrl('WSJ 미국 3분기 GDP 성장률 수정치')
             },
             [ordered]@{
-                id = 'g4'; title = '[블룸버그] 기술주 매도 속 미 국채 안전자산 유입… 10년물 금리 4.84%대 하락'
-                source = 'Bloomberg'; publishedAt = '11.25 06:20'; sentiment = 'positive'; impactLevel = '보통'
-                summary = '안전자산 선호로 장기국채(TLT) 단기 반등 · 금(GLD) 변동성 확대'
+                id = 'g4'; title = '기술주 급락 속 미 국채 안전자산 유입… 10년물 금리 4.84%대 하락'
+                source = 'CNBC'; publishedAt = '11.25 06:20'; sentiment = 'positive'; impactLevel = '보통'
+                summary = '주식 회피 자금이 국채로 몰리며 장기채(TLT) 가격 반등 · 방어력 확인'
+                digest = [ordered]@{
+                    what   = '나스닥과 기술주가 크게 출렁이자 위험을 피하려는 글로벌 기관 자금이 미국 국채로 유입되며 10년물 금리가 4.84%대로 내려왔습니다.'
+                    impact = '채권 금리가 하락하면 채권 가격은 오르므로, 장기국채 ETF(TLT)가 주식 하락장의 손실을 완충하는 안전판 역할을 했습니다.'
+                    action = '주식 100% 구성이 불안하다면 연 4.4%대 월이자도 나오는 TLT나 초단기 SGOV를 15~25% 섞어두세요.'
+                }
                 affectedEtfs = @('TLT', 'SGOV', 'GLD')
-                url = BloombergUrl('US Treasury yields flight to safety stocks')
+                url = NewsUrl('CNBC 미국 10년물 국채 금리 TLT')
             },
             [ordered]@{
-                id = 'g5'; title = '[블룸버그] AI 밸류에이션·설비투자 수익성 재평가… 반도체 이탈, 가치·배당 순환매'
-                source = 'Bloomberg'; publishedAt = '11.24 23:15'; sentiment = 'neutral'; impactLevel = '높음'
-                summary = '엔비디아·반도체 차익실현, 우량 배당주(SCHD) 상대 강세'
+                id = 'g5'; title = '빅테크 AI 투자 수익성 재평가… 반도체 이탈, 배당·가치주 순환매'
+                source = 'Financial Times'; publishedAt = '11.24 23:15'; sentiment = 'neutral'; impactLevel = '높음'
+                summary = 'AI 설비투자 회수 속도 논란 속 현금흐름 우량 배당 ETF(SCHD) 강세'
+                digest = [ordered]@{
+                    what   = '빅테크 기업들의 막대한 AI 인프라 투자가 단기 이익으로 얼마나 빠르게 이어질지 의구심이 커지며 기술주 차익실현이 진행 중입니다.'
+                    impact = '반도체(SOXX·SMH)에서는 단기 자금이 빠져나간 반면, PER이 낮고 배당을 꾸준히 늘리는 SCHD와 월배당 JEPI는 견조한 흐름입니다.'
+                    action = '기술주 비중이 과도하다면 이번 기회에 SCHD·JEPI 같은 배당·방어 자산으로 균형을 맞추는 리밸런싱을 검토하세요.'
+                }
                 affectedEtfs = @('SCHD', 'SOXX', 'SMH', 'JEPQ')
-                url = BloombergUrl('AI valuation Nasdaq semiconductors rotation')
+                url = NewsUrl('FT AI 투자 수익성 반도체 가치주 순환매')
+            },
+            [ordered]@{
+                id = 'g6'; title = '원/달러 환율 1,343원대 안정… 연중 고점 대비 하락해 분할 환전 유리'
+                source = '연합인포맥스'; publishedAt = '11.25 15:40'; sentiment = 'positive'; impactLevel = '보통'
+                summary = '1년 범위 중 하위 34% 구간 · 20일/60일 이평선 아래로 달러 확보 부담 완화'
+                digest = [ordered]@{
+                    what   = '달러 인덱스(104.1)가 숨 고르기에 들어가며 원/달러 환율이 연중 고점(1,412원) 대비 크게 낮아진 1,343원대에서 안정 흐름을 보이고 있습니다.'
+                    impact = '한국 투자자 입장에서는 달러 매입 단가 부담이 줄어들어, 지금 환전해 두면 추후 환율 반등 시 환차익 방어 효과도 기대할 수 있습니다.'
+                    action = '1,320~1,355원 구간에서는 매월 예정된 달러의 30% 이상을 꾸준히 분할 환전해 두기 좋은 타이밍입니다.'
+                }
+                affectedEtfs = @('SPLG', 'VOO', 'SGOV')
+                url = NewsUrl('원달러 환율 달러인덱스 미국주식 환전')
             }
         )
         calendar = @(
@@ -625,6 +699,51 @@ $data = [ordered]@{
             )
         }
     )
+}
+
+# 각 ETF별 매력적인 가격 구간(적극 분할 / 적정 적립 / 추격 주의) 자동 산출
+foreach ($etf in $data.etfs) {
+    $p = [double]$etf.price
+    $h = [double]$etf.high52w
+    $l = [double]$etf.low52w
+    $ma = [double]$etf.ma200
+    if ($etf.ticker -eq 'SGOV') {
+        $buyLow = [math]::Round($l, 2)
+        $buyHigh = [math]::Round($p + 0.15, 2)
+        $fairHigh = [math]::Round($h + 0.20, 2)
+        $zLabel = '수시 매수 구간'
+        $zLight = 'green'
+        $zNote = '초단기국채 특성상 가격 변동이 거의 없어 언제든 파킹 가능'
+    } else {
+        # 적극 분할 구간: 200일선 하단 ~ 200일선(+1%) 또는 고점 대비 -10% 이하
+        $buyLow = [math]::Round([math]::Max($l, $ma * 0.94), 2)
+        $buyHigh = [math]::Round([math]::Min($h * 0.92, $ma * 1.01), 2)
+        if ($buyHigh -le $buyLow) { $buyHigh = [math]::Round($buyLow * 1.04, 2) }
+        # 적정 적립 상단: 고점 대비 -3%
+        $fairHigh = [math]::Round([math]::Max($buyHigh * 1.04, $h * 0.97), 2)
+        if ($p -le $buyHigh) {
+            $zLabel = '적극 분할 구간'
+            $zLight = 'green'
+            $zNote = '200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간'
+        } elseif ($p -le $fairHigh) {
+            $zLabel = '적정 적립 구간'
+            $zLight = 'yellow'
+            $zNote = '고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음'
+        } else {
+            $zLabel = '추격 주의 구간'
+            $zLight = 'red'
+            $zNote = '52주 고점 근접 · 일괄 매수보다 눌림목 대기 권장'
+        }
+    }
+    $etf['priceZones'] = [ordered]@{
+        buyLow    = $buyLow
+        buyHigh   = $buyHigh
+        fairHigh  = $fairHigh
+        overPrice = $fairHigh
+        status    = $zLabel
+        light     = $zLight
+        note      = $zNote
+    }
 }
 
 $json = $data | ConvertTo-Json -Depth 12

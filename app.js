@@ -5,18 +5,22 @@
   'use strict';
 
   const FAV_KEY = 'etf_pulse_favs_v1';
-  const loadFavs = () => {
+  const ETF_LOG_KEY = 'etf_pulse_buy_logs_v1';
+  const FX_LOG_KEY = 'etf_pulse_fx_logs_v1';
+
+  const loadJsonStorage = (key, fallback) => {
     try {
-      const arr = JSON.parse(localStorage.getItem(FAV_KEY) || '["SPLG","QQQM","SCHD","SGOV"]');
-      return Array.isArray(arr) ? arr : [];
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      return Array.isArray(parsed) ? parsed : fallback;
     } catch {
-      return ['SPLG', 'QQQM', 'SCHD', 'SGOV'];
+      return fallback;
     }
   };
 
   const state = {
     data: null,
     activeTab: 'dashboard',
+    portfolioSub: 'analysis',
     category: '전체',
     lightFilter: 'all',
     searchQuery: '',
@@ -25,8 +29,14 @@
     selectedTicker: null,
     drawerNewsFilter: 'all',
     drawerChartRange: '1Y',
-    favs: loadFavs()
+    favs: loadJsonStorage(FAV_KEY, ['SPLG', 'QQQM', 'SCHD', 'SGOV']),
+    buyLogs: loadJsonStorage(ETF_LOG_KEY, []),
+    fxLogs: loadJsonStorage(FX_LOG_KEY, [])
   };
+
+  const saveBuyLogs = () => localStorage.setItem(ETF_LOG_KEY, JSON.stringify(state.buyLogs));
+  const saveFxLogs = () => localStorage.setItem(FX_LOG_KEY, JSON.stringify(state.fxLogs));
+  const todayStr = () => new Date().toISOString().slice(0, 10);
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -101,6 +111,26 @@
     if (s === 'positive') return { cls: 'green', label: '호재' };
     if (s === 'negative') return { cls: 'red', label: '악재' };
     return { cls: 'yellow', label: '중립' };
+  }
+
+  // 기사별 3포인트 인앱 요약본 생성 (데이터에 digest가 있으면 우선 사용, 없으면 자동 생성)
+  function getNewsDigest(n, fallbackTicker = '') {
+    if (n.digest && n.digest.what) return n.digest;
+    const etfText = (n.affectedEtfs && n.affectedEtfs.length) ? n.affectedEtfs.join('·') : (fallbackTicker || '미국 주요 ETF');
+    const what = `${n.title} — ${n.summary || '관련 시장 흐름을 요약한 소식입니다.'}`;
+    const impact =
+      n.sentiment === 'positive'
+        ? `${etfText}의 수급·실적 기대감을 높여주는 우호적 재료입니다.`
+        : n.sentiment === 'negative'
+          ? `단기 변동성을 키우거나 ${etfText}에 부담을 줄 수 있는 리스크 요인입니다.`
+          : `${etfText}의 단기 방향성과 섹터 흐름을 점검할 참고 이슈입니다.`;
+    const action =
+      n.sentiment === 'negative'
+        ? '이슈가 진정될 때까지 일괄 매수 대신 분할 매수·현금 비중 유지로 대응하세요.'
+        : n.sentiment === 'positive'
+          ? '기존 적립식 전략을 유지하되, 단기 과열(RSI 70↑) 여부만 함께 확인하세요.'
+          : '다른 핵심 지표(환율·VIX)와 함께 보며 무리한 추격 매수는 피하세요.';
+    return { what, impact, action };
   }
 
   function showToast(msg) {
@@ -232,7 +262,93 @@
     svg.addEventListener('touchend', onLeave);
   }
 
-  // ==================== 1. 오늘의 결론 & 목적별 빠른 선택 ====================
+  // ==================== 데일리 브리핑용 미니 SVG 시각화 헬퍼 ====================
+  // 1) 기준선(평균/목표) 포함 미니 스파크라인 SVG
+  function renderMiniTrendSvg(values, refVal, strokeColor, refLabel) {
+    if (!values || values.length < 2) return '';
+    const all = refVal != null ? [...values, refVal] : values;
+    const min = Math.min(...all);
+    const max = Math.max(...all);
+    const pad = (max - min || 1) * 0.16;
+    const lo = min - pad;
+    const hi = max + pad;
+    const span = hi - lo || 1;
+    const W = 220;
+    const H = 56;
+    const gx = (i) => 6 + (i / (values.length - 1)) * (W - 14);
+    const gy = (v) => 8 + (1 - (v - lo) / span) * (H - 16);
+
+    const pts = values.map((v, i) => `${gx(i).toFixed(1)},${gy(v).toFixed(1)}`);
+    const area = `M ${gx(0).toFixed(1)},${H - 4} L ${pts.join(' L ')} L ${gx(values.length - 1).toFixed(1)},${H - 4} Z`;
+    const lastX = gx(values.length - 1).toFixed(1);
+    const lastY = gy(values[values.length - 1]).toFixed(1);
+    const gid = `mt_${Math.random().toString(36).slice(2, 8)}`;
+
+    let refSvg = '';
+    if (refVal != null) {
+      const ry = gy(refVal).toFixed(1);
+      refSvg = `
+        <line x1="4" y1="${ry}" x2="${W - 4}" y2="${ry}" stroke="#3182f6" stroke-width="1.2" stroke-dasharray="3 3" stroke-opacity="0.75" />
+        ${refLabel ? `<text x="${W - 6}" y="${Math.max(10, Number(ry) - 3)}" text-anchor="end" fill="#3182f6" font-size="9.5" font-weight="700">${esc(refLabel)}</text>` : ''}
+      `;
+    }
+
+    return `
+      <svg class="mini-viz-svg" viewBox="0 0 ${W} ${H}" width="100%" height="56" aria-hidden="true">
+        <defs>
+          <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.22" />
+            <stop offset="100%" stop-color="${strokeColor}" stop-opacity="0.01" />
+          </linearGradient>
+        </defs>
+        <path d="${area}" fill="url(#${gid})" />
+        ${refSvg}
+        <polyline fill="none" stroke="${strokeColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="${pts.join(' ')}" />
+        <circle cx="${lastX}" cy="${lastY}" r="4" fill="${strokeColor}" stroke="var(--surface)" stroke-width="2" />
+      </svg>
+    `;
+  }
+
+  // 2) 공포·탐욕 반원형 계기판 SVG (0=극단 공포 ~ 100=극단 탐욕)
+  function renderFearGreedGaugeSvg(score) {
+    const val = Math.max(0, Math.min(100, Number(score) || 50));
+    const W = 220;
+    const H = 84;
+    const cx = 110;
+    const cy = 68;
+    const r = 54;
+    const angleRad = Math.PI * (1 - val / 100);
+    const px = cx + r * Math.cos(angleRad);
+    const py = cy - r * Math.sin(angleRad);
+
+    const arcPath = (startPct, endPct) => {
+      const a1 = Math.PI * (1 - startPct / 100);
+      const a2 = Math.PI * (1 - endPct / 100);
+      const x1 = cx + r * Math.cos(a1);
+      const y1 = cy - r * Math.sin(a1);
+      const x2 = cx + r * Math.cos(a2);
+      const y2 = cy - r * Math.sin(a2);
+      return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+    };
+
+    const label = val <= 25 ? '극단 공포' : val <= 45 ? '공포' : val <= 55 ? '중립' : val <= 75 ? '탐욕' : '극단 탐욕';
+    const valColor = val <= 25 ? '#f04452' : val <= 45 ? '#ff9f0a' : val <= 55 ? '#64748b' : '#00c471';
+
+    return `
+      <svg class="mini-viz-svg" viewBox="0 0 ${W} ${H}" width="100%" height="82" aria-hidden="true">
+        <path d="${arcPath(0, 28)}" fill="none" stroke="#f04452" stroke-width="10" stroke-linecap="round" opacity="0.88" />
+        <path d="${arcPath(31, 69)}" fill="none" stroke="#ff9f0a" stroke-width="10" stroke-linecap="round" opacity="0.65" />
+        <path d="${arcPath(72, 100)}" fill="none" stroke="#00c471" stroke-width="10" stroke-linecap="round" opacity="0.88" />
+        <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="7" fill="${valColor}" stroke="#fff" stroke-width="2.5" />
+        <text x="${cx}" y="${cy - 18}" text-anchor="middle" fill="${valColor}" font-size="20" font-weight="800">${val}</text>
+        <text x="${cx}" y="${cy - 2}" text-anchor="middle" fill="var(--ink-2)" font-size="10.5" font-weight="700">${label}</text>
+        <text x="44" y="${H - 1}" text-anchor="middle" fill="var(--ink-3)" font-size="9.5">0 공포</text>
+        <text x="176" y="${H - 1}" text-anchor="middle" fill="var(--ink-3)" font-size="9.5">100 탐욕</text>
+      </svg>
+    `;
+  }
+
+  // ==================== 1. 오늘의 결론 & 시각화 데일리 브리핑 ====================
   function renderOverview() {
     const { meta, overview, fx, macro } = state.data;
     $('#updatedLabel').textContent = meta.updatedLabel;
@@ -240,48 +356,110 @@
     $('#heroHeadline').textContent = overview.headline || '오늘의 미국 ETF 투자 신호등을 확인하세요.';
 
     const cpiInd = macro.indicators.find((i) => i.id === 'cpi');
+    const gdpInd = macro.indicators.find((i) => i.id === 'gdp');
+    const vixInd = macro.indicators.find((i) => i.id === 'vix');
 
-    const cells = [
-      {
-        tab: 'fx',
-        label: '1. 환전',
-        light: overview.fxSignal.light,
-        badge: overview.fxSignal.label,
-        val: `${fx.usdKrw.toLocaleString('ko-KR')}원`,
-        sub: overview.fxSignal.summary
-      },
-      {
-        tab: 'macro-vix',
-        label: '2. 시장 심리',
-        light: overview.marketSentiment.light,
-        badge: overview.marketSentiment.label,
-        val: `공포 ${overview.marketSentiment.fearGreed}`,
-        sub: `VIX ${overview.marketSentiment.vix} · 그래프 ↗`
-      },
-      {
-        tab: 'macro',
-        label: '3. 미국 경기',
-        light: overview.macroSignal.light,
-        badge: overview.macroSignal.label,
-        val: `물가 ${cpiInd ? cpiInd.value : '-'}`,
-        sub: `${overview.macroSignal.summary} →`
-      }
-    ];
+    // 1) 환율 시각화 데이터
+    const fxVals = (fx.history || []).map((p) => Number(p.value));
+    const fxAvg = fxVals.length ? +(fxVals.reduce((a, b) => a + b, 0) / fxVals.length).toFixed(1) : fx.ma60;
+    const fxFromHigh = +(fx.usdKrw - fx.high52w).toFixed(1);
+    const fxStroke = fx.light === 'green' ? '#00c471' : fx.light === 'yellow' ? '#ff9f0a' : '#f04452';
 
-    $('#overviewSignals').innerHTML = cells
-      .map(
-        (c) => `
-      <button class="logic-cell" type="button" data-goto="${c.tab}">
+    // 2) 시장 심리(공포지수 + VIX) 시각화 데이터
+    const fgVal = overview.marketSentiment.fearGreed;
+    const vixCur = Number(overview.marketSentiment.vix) || 20;
+    const vixPrev = vixInd ? Number(vixInd.prev) : 24.6;
+    const vixDiff = +(vixCur - vixPrev).toFixed(1);
+    const vixBarPct = Math.min(100, Math.round((vixCur / 40) * 100)); // 0~40 스케일, 20이 50%
+
+    // 3) 미국 경기(물가 CPI 추이 + 목표 2% 비교 막대)
+    const cpiVals = (cpiInd?.history || []).map((p) => Number(p.value));
+    const cpiNum = Number(cpiInd?.numValue) || 3.8;
+    const gdpNum = Number(gdpInd?.numValue) || 4.3;
+    const cpiBarPct = Math.min(100, Math.round((cpiNum / 6) * 100)); // 0~6% 스케일, 2%가 33%
+    const gdpBarPct = Math.min(100, Math.round((gdpNum / 6) * 100));
+
+    $('#overviewSignals').innerHTML = `
+      <!-- 카드 1: 환전 타이밍 (1년 추이 + 최저~최고 위치 바) -->
+      <button class="logic-cell viz-card" type="button" data-goto="fx">
         <div class="logic-top">
-          <span class="logic-label">${c.label}</span>
-          <span class="status-pill ${c.light}"><i class="sdot ${c.light}"></i>${esc(c.badge)}</span>
+          <span class="logic-label">1. 환전 (원/달러)</span>
+          <span class="status-pill ${overview.fxSignal.light}"><i class="sdot ${overview.fxSignal.light}"></i>${esc(overview.fxSignal.label)}</span>
         </div>
-        <div class="logic-val num">${c.val}</div>
-        <div class="logic-sub">${esc(c.sub)}</div>
+        <div class="viz-val-row num">
+          <span class="logic-val">${fx.usdKrw.toLocaleString('ko-KR')}원</span>
+          <span class="viz-delta ${fxFromHigh <= 0 ? 'good' : 'bad'}">고점비 ${fxFromHigh}원</span>
+        </div>
+        <div class="viz-chart-box">
+          ${renderMiniTrendSvg(fxVals, fxAvg, fxStroke, `1년평균 ${Math.round(fxAvg)}`)}
+        </div>
+        <div class="mini-range-wrap num">
+          <div class="mini-range-bar">
+            <div class="mini-range-fill" style="width:${fx.percentile1Y}%; background:${fxStroke};"></div>
+            <div class="mini-range-dot" style="left:${fx.percentile1Y}%;"></div>
+          </div>
+          <div class="mini-range-labels">
+            <span>최저 ${Math.round(fx.low52w)}</span>
+            <strong>하위 ${fx.percentile1Y}% (싼 편)</strong>
+            <span>최고 ${Math.round(fx.high52w)}</span>
+          </div>
+        </div>
       </button>
-    `
-      )
-      .join('');
+
+      <!-- 카드 2: 시장 심리 (반원 계기판 + VIX 변동성 막대) -->
+      <button class="logic-cell viz-card" type="button" data-goto="macro-vix">
+        <div class="logic-top">
+          <span class="logic-label">2. 시장 심리</span>
+          <span class="status-pill ${overview.marketSentiment.light}"><i class="sdot ${overview.marketSentiment.light}"></i>${esc(overview.marketSentiment.label)}</span>
+        </div>
+        <div class="viz-gauge-box">
+          ${renderFearGreedGaugeSvg(fgVal)}
+        </div>
+        <div class="vix-compare num">
+          <div class="vix-compare-head">
+            <span>공포지수 VIX <strong>${vixCur}</strong></span>
+            <span class="${vixDiff > 0 ? 'bad' : 'good'}">${vixDiff > 0 ? '+' : ''}${vixDiff} (경계 20↑)</span>
+          </div>
+          <div class="ref-bar-track">
+            <div class="ref-bar-fill" style="width:${vixBarPct}%; background:${vixCur >= 25 ? '#f04452' : vixCur >= 18 ? '#ff9f0a' : '#00c471'};"></div>
+            <div class="ref-bar-tick" style="left:50%;" title="경계선 20"></div>
+          </div>
+        </div>
+      </button>
+
+      <!-- 카드 3: 미국 경기 (물가 추이 + 목표 2% 대비 비교 막대) -->
+      <button class="logic-cell viz-card" type="button" data-goto="macro">
+        <div class="logic-top">
+          <span class="logic-label">3. 미국 경기</span>
+          <span class="status-pill ${overview.macroSignal.light}"><i class="sdot ${overview.macroSignal.light}"></i>${esc(overview.macroSignal.label)}</span>
+        </div>
+        <div class="viz-val-row num">
+          <span class="logic-val">물가 ${cpiNum}%</span>
+          <span class="viz-delta bad">목표(2%) 대비 +${(cpiNum - 2).toFixed(1)}%p</span>
+        </div>
+        <div class="viz-chart-box">
+          ${renderMiniTrendSvg(cpiVals, 2.0, '#f04452', '목표 2.0%')}
+        </div>
+        <div class="dual-bars num">
+          <div class="dual-bar-row">
+            <span>물가 <strong>${cpiNum}%</strong></span>
+            <div class="ref-bar-track">
+              <div class="ref-bar-fill" style="width:${cpiBarPct}%; background:#f04452;"></div>
+              <div class="ref-bar-tick" style="left:33.3%;" title="목표 2%"></div>
+            </div>
+            <em class="bad">높음</em>
+          </div>
+          <div class="dual-bar-row">
+            <span>성장 <strong>${gdpNum}%</strong></span>
+            <div class="ref-bar-track">
+              <div class="ref-bar-fill" style="width:${gdpBarPct}%; background:#00c471;"></div>
+              <div class="ref-bar-tick" style="left:33.3%;" title="잠재 2%"></div>
+            </div>
+            <em class="good">탄탄</em>
+          </div>
+        </div>
+      </button>
+    `;
 
     $$('.logic-cell').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -434,7 +612,7 @@
     state.drawerNewsFilter = 'all';
     state.drawerChartRange = '1Y';
 
-    $('#drawerTickerTitle').textContent = `${etf.krName} (${etf.ticker})`;
+    $('#drawerTickerTitle').textContent = `${etf.ticker} · ${etf.krName}`;
     $('#drawerCategory').textContent = etf.category;
     updateDrawerFavBtn();
 
@@ -471,9 +649,26 @@
     const fxStatus = fx.light === 'green' ? { l: 'green', t: '환전 유리' } : fx.light === 'yellow' ? { l: 'yellow', t: '보통' } : { l: 'red', t: '환율 부담' };
     const newsStatus = pos > neg ? { l: 'green', t: '호재 우세' } : neg > pos ? { l: 'red', t: '악재 우세' } : { l: 'yellow', t: '팽팽함' };
 
+    // 매력적인 가격구간 시각화 바 계산
+    const pz = etf.priceZones || {
+      buyLow: +(etf.ma200 * 0.94).toFixed(2),
+      buyHigh: +(etf.ma200 * 1.01).toFixed(2),
+      fairHigh: +(etf.high52w * 0.97).toFixed(2),
+      status: '적정 적립 구간',
+      light: 'yellow',
+      note: '정기 분할 매수에 무리 없는 구간'
+    };
+    const barMin = Math.min(etf.low52w, pz.buyLow) * 0.98;
+    const barMax = Math.max(etf.high52w, pz.fairHigh) * 1.02;
+    const barSpan = Math.max(0.01, barMax - barMin);
+    const pctOf = (v) => Math.max(2, Math.min(98, ((v - barMin) / barSpan) * 100));
+    const curPin = pctOf(etf.price);
+    const greenEnd = pctOf(pz.buyHigh);
+    const yellowEnd = Math.max(greenEnd + 6, pctOf(pz.fairHigh));
+
     const body = $('#drawerBody');
     body.innerHTML = `
-      <!-- 1. 결론 + 실행 전략 3칸 + 5가지 꼼꼼 체크 -->
+      <!-- 1. 결론 + 실행 전략 3칸 + 매력적인 가격 구간 + 5가지 꼼꼼 체크 -->
       <div class="sheet-card">
         <div class="verdict-top">
           <div>
@@ -493,6 +688,37 @@
           </div>
         </div>
 
+        <!-- 매력적인 가격 구간 가이드 -->
+        <div class="price-zone-card">
+          <div class="pz-head">
+            <strong>매력적인 가격 구간</strong>
+            <span class="status-pill ${pz.light}"><i class="sdot ${pz.light}"></i>현재: ${esc(pz.status)}</span>
+          </div>
+          <div class="pz-bar-wrap">
+            <div class="pz-bar">
+              <div class="pz-seg green" style="width:${greenEnd}%"></div>
+              <div class="pz-seg yellow" style="width:${Math.max(4, yellowEnd - greenEnd)}%"></div>
+              <div class="pz-seg red" style="width:${Math.max(4, 100 - yellowEnd)}%"></div>
+            </div>
+            <div class="pz-pin" style="left:${curPin}%" title="현재가 ${fmtUsd(etf.price)}"></div>
+          </div>
+          <div class="pz-grid num">
+            <div class="pz-box green">
+              <span>적극 분할</span>
+              <strong>${fmtUsd(pz.buyLow)} ~ ${fmtUsd(pz.buyHigh)}</strong>
+            </div>
+            <div class="pz-box yellow">
+              <span>적정 적립</span>
+              <strong>${fmtUsd(pz.buyHigh)} ~ ${fmtUsd(pz.fairHigh)}</strong>
+            </div>
+            <div class="pz-box red">
+              <span>추격 주의</span>
+              <strong>${fmtUsd(pz.fairHigh)} 이상</strong>
+            </div>
+          </div>
+          <div class="pz-note">${esc(pz.note)}</div>
+        </div>
+
         <!-- 의사결정 실행 가이드 3칸 -->
         <div class="decision-strip">
           <div class="dec-cell">
@@ -507,6 +733,10 @@
             <span>위험도</span>
             <strong>${renderRiskBars(etf.riskLevel)}</strong>
           </div>
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="primary-sm-btn" type="button" id="quickLogBuyBtn">+ 이 종목 매수 일지 기록</button>
         </div>
 
         ${etf.compareTip ? `<div class="compare-tip"><strong>선택 팁</strong><span>${esc(etf.compareTip)}</span></div>` : ''}
@@ -554,7 +784,7 @@
       <!-- 2. 주가 차트 & 핵심 3지표 -->
       <div class="sheet-card">
         <div class="chart-header">
-          <strong style="font-size:0.95rem;">주가 흐름 (점선: 200일 평균)</strong>
+          <strong style="font-size:0.95rem;">주가 흐름 <span style="font-size:0.76rem; font-weight:600; color:var(--ink-3);">· 200일선</span></strong>
           <div class="signal-seg" id="drawerRangeBtns">
             <button class="seg-btn ${state.drawerChartRange === '3M' ? 'active' : ''}" data-range="3M" type="button">3개월</button>
             <button class="seg-btn ${state.drawerChartRange === '6M' ? 'active' : ''}" data-range="6M" type="button">6개월</button>
@@ -631,6 +861,16 @@
       </div>
     `;
 
+    const quickLogBtn = $('#quickLogBuyBtn', body);
+    if (quickLogBtn) {
+      quickLogBtn.addEventListener('click', () => {
+        closeEtfDrawer();
+        state.portfolioSub = 'etflog';
+        switchTab('portfolio');
+        renderPortfolioTab(etf.ticker);
+      });
+    }
+
     const drawChart = () => {
       const len = etf.history.length;
       const take = state.drawerChartRange === '3M' ? Math.min(len, 7) : state.drawerChartRange === '6M' ? Math.min(len, 14) : len;
@@ -661,25 +901,33 @@
         return;
       }
       wrap.innerHTML = list
-        .map((n) => {
+        .map((n, idx) => {
           const sm = sentimentMeta(n.sentiment);
-          const isBb = String(n.source || '').toLowerCase().includes('bloomberg');
+          const src = String(n.source || '');
+          const isGlobalWire = /^(bloomberg|reuters|wsj|cnbc|financial times|ft)$/i.test(src.trim());
+          const d = getNewsDigest(n, etf.ticker);
           return `
-          <article class="news-item">
-            <div class="news-top">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <span class="status-pill ${sm.cls}"><i class="sdot ${sm.cls}"></i>${sm.label}</span>
-                ${isBb ? '<span class="bb-badge">Bloomberg</span>' : ''}
+          <details class="news-item news-digest-item" ${idx === 0 ? 'open' : ''}>
+            <summary class="news-summary-trigger">
+              <div class="news-top">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span class="status-pill ${sm.cls}"><i class="sdot ${sm.cls}"></i>${sm.label}</span>
+                  ${isGlobalWire ? `<span class="bb-badge">${esc(src)}</span>` : ''}
+                </div>
+                <span class="news-meta">${esc(src)} · ${esc(n.publishedAt)}</span>
               </div>
-              <span class="news-meta">${esc(n.source)} · ${esc(n.publishedAt)}</span>
+              <div class="news-head-row">
+                <h4 class="news-title">${esc(n.title)}</h4>
+                <span class="news-chev" aria-hidden="true">▾</span>
+              </div>
+              <p class="news-impact">${esc(n.summary)}</p>
+            </summary>
+            <div class="digest-panel">
+              <div class="digest-row"><strong>핵심</strong><span>${esc(d.what)}</span></div>
+              <div class="digest-row"><strong>영향</strong><span>${esc(d.impact)}</span></div>
+              <div class="digest-row"><strong>대응</strong><span>${esc(d.action)}</span></div>
             </div>
-            <h4 class="news-title">
-              <a class="news-title-link" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">
-                ${esc(n.title)}<span class="ext-arrow" aria-hidden="true">↗</span>
-              </a>
-            </h4>
-            <p class="news-impact">${esc(n.summary)}</p>
-          </article>
+          </details>
         `;
         })
         .join('');
@@ -838,7 +1086,7 @@
 
   // ==================== 5. 거시경제 (클릭 시 같은 탭에서 상세 그래프 · 뒤로가기 시 바로 복귀!) ====================
   function renderMacroTab() {
-    const { indicators, globalNews, calendar } = state.data.macro;
+    const { indicators, globalStory, geopolitics, globalSummary, globalNews, calendar } = state.data.macro;
 
     $('#macroIndicatorsGrid').innerHTML = indicators
       .map(
@@ -851,11 +1099,88 @@
         <div class="macro-tile-val num">${esc(ind.value)}</div>
         <div style="font-size:0.73rem; color:var(--ink-3);">${esc(ind.tag)} · 직전 ${esc(ind.prev)}</div>
         <div class="macro-tile-desc">${esc(ind.impact)}</div>
-        <div class="macro-open-hint">그래프 · 상세 분석 →</div>
+        <div class="macro-open-hint">그래프 분석 →</div>
       </a>
     `
       )
       .join('');
+
+    // 지금 세계 경제 스토리 (4단계 인과 흐름)
+    const storyEl = $('#globalStoryFlow');
+    if (storyEl && Array.isArray(globalStory)) {
+      storyEl.innerHTML = globalStory
+        .map(
+          (st) => `
+        <div class="story-step">
+          <div class="story-rail">
+            <span class="story-num ${st.light}">${esc(st.step)}</span>
+          </div>
+          <div class="story-content">
+            <div class="story-stage">${esc(st.stage)}</div>
+            <strong class="story-title">${esc(st.title)}</strong>
+            <p class="story-desc">${esc(st.desc)}</p>
+          </div>
+        </div>
+      `
+        )
+        .join('');
+    }
+
+    // 전쟁 · 지정학 · 돌발 변수 카드
+    const geoEl = $('#geopoliticsGrid');
+    if (geoEl && Array.isArray(geopolitics)) {
+      geoEl.innerHTML = geopolitics
+        .map(
+          (g) => `
+        <div class="geo-card">
+          <div class="geo-head">
+            <strong>${esc(g.title)}</strong>
+            <span class="status-pill ${g.light}"><i class="sdot ${g.light}"></i>${esc(g.status)}</span>
+          </div>
+          <div class="geo-line"><span>체크</span><p>${esc(g.trigger)}</p></div>
+          <div class="geo-line"><span>파급</span><p>${esc(g.chain)}</p></div>
+          <div class="geo-etfs">
+            <div class="geo-etf-group">
+              <small>수혜</small>
+              ${(g.good || []).map((t) => `<button class="etf-chip" type="button" data-geo-etf="${t}">${t}</button>`).join('')}
+            </div>
+            <div class="geo-etf-group">
+              <small>주의</small>
+              ${(g.bad || []).map((t) => `<button class="etf-chip red-chip" type="button" data-geo-etf="${t}">${t}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+      `
+        )
+        .join('');
+
+      $$('[data-geo-etf]', geoEl).forEach((btn) => {
+        btn.addEventListener('click', () => openEtfDrawer(btn.dataset.geoEtf));
+      });
+    }
+
+    // 상단 30초 국제 정황 브리핑
+    const briefBox = $('#globalBriefBox');
+    if (briefBox && Array.isArray(globalSummary) && globalSummary.length) {
+      briefBox.innerHTML = `
+        <div class="gb-title">30초 국제 정황 핵심 정리</div>
+        <ul class="gb-list">
+          ${globalSummary
+            .map(
+              (item) => `
+            <li>
+              <span class="status-pill ${item.light}"><i class="sdot ${item.light}"></i>${esc(item.topic)}</span>
+              <span>${esc(item.text)}</span>
+            </li>
+          `
+            )
+            .join('')}
+        </ul>
+      `;
+      briefBox.style.display = 'block';
+    } else if (briefBox) {
+      briefBox.style.display = 'none';
+    }
 
     renderGlobalNews(globalNews);
 
@@ -886,45 +1211,683 @@
     }
 
     wrap.innerHTML = list
-      .map((n) => {
+      .map((n, idx) => {
         const sm = sentimentMeta(n.sentiment);
-        const isBb = String(n.source || '').toLowerCase().includes('bloomberg');
+        const src = String(n.source || '');
+        const isGlobalWire = /^(bloomberg|reuters|wsj|cnbc|financial times|ft)$/i.test(src.trim());
+        const d = getNewsDigest(n);
         const chips = (n.affectedEtfs || []).map((t) => `<button class="etf-chip" type="button" data-open="${t}">${t}</button>`).join(' ');
         return `
-        <article class="news-item">
-          <div class="news-top">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span class="status-pill ${sm.cls}"><i class="sdot ${sm.cls}"></i>${sm.label}</span>
-              ${isBb ? '<span class="bb-badge">Bloomberg</span>' : ''}
+        <details class="news-item news-digest-item" ${idx === 0 ? 'open' : ''}>
+          <summary class="news-summary-trigger">
+            <div class="news-top">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="status-pill ${sm.cls}"><i class="sdot ${sm.cls}"></i>${sm.label}</span>
+                ${isGlobalWire ? `<span class="bb-badge">${esc(src)}</span>` : ''}
+              </div>
+              <span class="news-meta">${esc(src)} · ${esc(n.publishedAt)}</span>
             </div>
-            <span class="news-meta">${esc(n.source)} · ${esc(n.publishedAt)}</span>
+            <div class="news-head-row">
+              <h4 class="news-title">${esc(n.title)}</h4>
+              <span class="news-chev" aria-hidden="true">▾</span>
+            </div>
+            <p class="news-impact">${esc(n.summary)}</p>
+          </summary>
+
+          <div class="digest-panel">
+            <div class="digest-row"><strong>핵심</strong><span>${esc(d.what)}</span></div>
+            <div class="digest-row"><strong>영향</strong><span>${esc(d.impact)}</span></div>
+            <div class="digest-row"><strong>대응</strong><span>${esc(d.action)}</span></div>
+            ${chips ? `<div class="digest-etfs"><span class="news-meta">관련 ETF</span> ${chips}</div>` : ''}
           </div>
-          <h4 class="news-title">
-            <a class="news-title-link" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">
-              ${esc(n.title)}<span class="ext-arrow" aria-hidden="true">↗</span>
-            </a>
-          </h4>
-          <p class="news-impact">${esc(n.summary)}</p>
-          <div class="news-bottom">
-            <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">${chips}</div>
-          </div>
-        </article>
+        </details>
       `;
       })
       .join('');
 
     $$('[data-open]', wrap).forEach((btn) => {
-      btn.addEventListener('click', () => openEtfDrawer(btn.dataset.open));
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openEtfDrawer(btn.dataset.open);
+      });
     });
+
+    const toggleBtn = $('#toggleAllNewsBtn');
+    if (toggleBtn) toggleBtn.textContent = '전체 펼치기';
+  }
+
+  // ==================== 6. 내 투자 (매수 일지 · 환전 일지 · 포트폴리오 자동 분석) ====================
+  function computePortfolioStats() {
+    const curFx = state.data.fx.usdKrw;
+    const etfMap = new Map(state.data.etfs.map((e) => [e.ticker, e]));
+
+    // 종목별 집계
+    const byTicker = {};
+    let totalBuyUsd = 0;
+    let totalBuyKrw = 0;
+    for (const log of state.buyLogs) {
+      const t = log.ticker;
+      const qty = Number(log.qty) || 0;
+      const price = Number(log.price) || 0;
+      const fx = Number(log.fxRate) || curFx;
+      if (!byTicker[t]) byTicker[t] = { ticker: t, qty: 0, costUsd: 0, costKrw: 0 };
+      byTicker[t].qty += qty;
+      byTicker[t].costUsd += qty * price;
+      byTicker[t].costKrw += qty * price * fx;
+      totalBuyUsd += qty * price;
+      totalBuyKrw += qty * price * fx;
+    }
+
+    const holdings = Object.values(byTicker)
+      .filter((h) => h.qty > 0)
+      .map((h) => {
+        const etf = etfMap.get(h.ticker);
+        const curPrice = etf ? etf.price : h.costUsd / h.qty;
+        const avgPrice = h.costUsd / h.qty;
+        const avgFx = h.costKrw / Math.max(0.01, h.costUsd);
+        const valUsd = h.qty * curPrice;
+        const valKrw = valUsd * curFx;
+        const stockRetPct = ((curPrice - avgPrice) / avgPrice) * 100;
+        const fxRetPct = ((curFx - avgFx) / avgFx) * 100;
+        const totalRetPct = ((valKrw - h.costKrw) / Math.max(1, h.costKrw)) * 100;
+        return {
+          ...h,
+          etf,
+          curPrice,
+          avgPrice,
+          avgFx,
+          valUsd,
+          valKrw,
+          profitKrw: valKrw - h.costKrw,
+          stockRetPct,
+          fxRetPct,
+          totalRetPct
+        };
+      })
+      .sort((a, b) => b.valKrw - a.valKrw);
+
+    const totalValUsd = holdings.reduce((s, h) => s + h.valUsd, 0);
+    const totalValKrw = holdings.reduce((s, h) => s + h.valKrw, 0);
+    const totalProfitKrw = totalValKrw - totalBuyKrw;
+    const totalRetPct = totalBuyKrw > 0 ? (totalProfitKrw / totalBuyKrw) * 100 : 0;
+    const stockOnlyRetPct = totalBuyUsd > 0 ? ((totalValUsd - totalBuyUsd) / totalBuyUsd) * 100 : 0;
+    const avgBuyFx = totalBuyUsd > 0 ? totalBuyKrw / totalBuyUsd : curFx;
+    const fxEffectPct = totalBuyUsd > 0 ? ((curFx - avgBuyFx) / avgBuyFx) * 100 : 0;
+
+    // 카테고리 비중
+    const catTotals = { '대표지수': 0, '배당·인컴': 0, '기술·반도체': 0, '채권·금': 0 };
+    for (const h of holdings) {
+      const c = h.etf ? h.etf.category : '대표지수';
+      catTotals[c] = (catTotals[c] || 0) + h.valKrw;
+    }
+
+    // 환전 집계
+    const totalFxKrw = state.fxLogs.reduce((s, x) => s + (Number(x.krw) || 0), 0);
+    const totalFxUsd = state.fxLogs.reduce((s, x) => s + (Number(x.usd) || 0), 0);
+    const avgFxRate = totalFxUsd > 0 ? totalFxKrw / totalFxUsd : 0;
+    const fxDiffPerUsd = avgFxRate > 0 ? curFx - avgFxRate : 0;
+    const estRemainingUsd = totalFxUsd - totalBuyUsd;
+
+    return {
+      holdings,
+      totalBuyUsd,
+      totalBuyKrw,
+      totalValUsd,
+      totalValKrw,
+      totalProfitKrw,
+      totalRetPct,
+      stockOnlyRetPct,
+      fxEffectPct,
+      catTotals,
+      totalFxKrw,
+      totalFxUsd,
+      avgFxRate,
+      fxDiffPerUsd,
+      estRemainingUsd
+    };
+  }
+
+  function loadSampleJournal() {
+    state.fxLogs = [
+      { id: 'fx1', date: '2026-10-15', krw: 2000000, rate: 1355.0, usd: 1476.01, memo: '1차 분할 환전' },
+      { id: 'fx2', date: '2026-11-18', krw: 2000000, rate: 1346.8, usd: 1485.0, memo: '2차 환율 안정 구간 환전' }
+    ];
+    state.buyLogs = [
+      { id: 'b1', date: '2026-10-16', ticker: 'SPLG', price: 86.20, qty: 10, fxRate: 1355.0, memo: 'S&P500 적립식 1차' },
+      { id: 'b2', date: '2026-11-05', ticker: 'SCHD', price: 34.60, qty: 20, fxRate: 1350.0, memo: '배당 방어 비중 확보' },
+      { id: 'b3', date: '2026-11-19', ticker: 'QQQM', price: 271.50, qty: 3, fxRate: 1346.8, memo: '나스닥 조정 1차 분할' }
+    ];
+    saveFxLogs();
+    saveBuyLogs();
+    renderPortfolioTab();
+    showToast('샘플 매수·환전 일지를 불러왔어요. 자유롭게 수정·삭제할 수 있습니다.');
+  }
+
+  function renderPortfolioTab(preselectTicker = null) {
+    $$('#portfolioSubTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.sub === state.portfolioSub));
+    const root = $('#portfolioRoot');
+    if (!root || !state.data) return;
+
+    const stats = computePortfolioStats();
+    const curFx = state.data.fx.usdKrw;
+
+    if (state.portfolioSub === 'analysis') {
+      if (!stats.holdings.length && !state.fxLogs.length) {
+        root.innerHTML = `
+          <div class="surface" style="text-align:center; padding:36px 20px;">
+            <h2 class="section-title" style="margin-bottom:8px;">아직 기록된 매수·환전 일지가 없어요</h2>
+            <p class="section-sub" style="margin-bottom:20px;">매수한 ETF나 환전 내역을 기록하면 수익률·환차익·비중 진단·보유 종목 핵심 이슈를 자동으로 분석해 드립니다.</p>
+            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+              <button class="primary-sm-btn" id="goAddBuyBtn" type="button" style="padding:10px 16px; font-size:0.86rem;">+ ETF 매수 기록하기</button>
+              <button class="ghost-btn" id="goAddFxBtn" type="button" style="height:38px;">+ 환전 기록하기</button>
+              <button class="ghost-btn accent" id="loadSampleBtn" type="button" style="height:38px;">샘플 기록으로 미리보기</button>
+            </div>
+          </div>
+        `;
+        $('#goAddBuyBtn', root).addEventListener('click', () => { state.portfolioSub = 'etflog'; renderPortfolioTab(); });
+        $('#goAddFxBtn', root).addEventListener('click', () => { state.portfolioSub = 'fxlog'; renderPortfolioTab(); });
+        $('#loadSampleBtn', root).addEventListener('click', loadSampleJournal);
+        return;
+      }
+
+      // 카테고리 비중 계산 및 자동 진단 문구
+      const totalV = Math.max(1, stats.totalValKrw);
+      const pcts = {
+        '대표지수': Math.round((stats.catTotals['대표지수'] / totalV) * 100),
+        '배당·인컴': Math.round((stats.catTotals['배당·인컴'] / totalV) * 100),
+        '기술·반도체': Math.round((stats.catTotals['기술·반도체'] / totalV) * 100),
+        '채권·금': Math.round((stats.catTotals['채권·금'] / totalV) * 100)
+      };
+
+      const diagLines = [];
+      if (pcts['기술·반도체'] >= 50) {
+        diagLines.push({ light: 'red', label: '비중 경고', text: `기술·반도체 비중이 ${pcts['기술·반도체']}%로 높아요. VIX 28 장세에서는 SCHD·SGOV 분산이 안전합니다.` });
+      } else if (pcts['대표지수'] + pcts['배당·인컴'] >= 50) {
+        diagLines.push({ light: 'green', label: '균형 양호', text: `대표지수·배당 비중이 ${pcts['대표지수'] + pcts['배당·인컴']}%로 변동성 방어가 잘 잡혀 있어요.` });
+      }
+      if (pcts['채권·금'] === 0 && stats.holdings.length > 0) {
+        diagLines.push({ light: 'yellow', label: '현금 방어', text: '채권·파킹(SGOV·TLT) 비중이 0%예요. 여유 달러를 SGOV에 두면 연 4%대 이자를 받으며 대기할 수 있어요.' });
+      }
+      if (stats.avgFxRate > 0) {
+        const fxGood = curFx >= stats.avgFxRate;
+        diagLines.push({
+          light: fxGood ? 'green' : 'yellow',
+          label: '환전 단가',
+          text: `평균 환전가 ${stats.avgFxRate.toFixed(1)}원 vs 현재 ${curFx.toLocaleString('ko-KR')}원 (${stats.fxDiffPerUsd >= 0 ? '+' : ''}${stats.fxDiffPerUsd.toFixed(1)}원/달러).`
+        });
+      }
+
+      // 보유 종목 관련 주요 이슈 자동 추출
+      const ownedTickers = new Set(stats.holdings.map((h) => h.ticker));
+      const matchedGlobal = state.data.macro.globalNews.filter((n) => (n.affectedEtfs || []).some((t) => ownedTickers.has(t)));
+      const ownedEtfNews = [];
+      for (const h of stats.holdings) {
+        if (h.etf && h.etf.news && h.etf.news.length) {
+          ownedEtfNews.push({ ...h.etf.news[0], affectedEtfs: [h.ticker], id: `own-${h.ticker}` });
+        }
+      }
+      const myIssues = [...matchedGlobal, ...ownedEtfNews].slice(0, 6);
+
+      root.innerHTML = `
+        <!-- 1. 내 계좌 종합 요약 -->
+        <div class="surface">
+          <div class="hero-eyebrow">
+            <span class="eyebrow-text">내 미국 ETF 포트폴리오</span>
+            <span class="source-tag">현재 환율 ${curFx.toLocaleString('ko-KR')}원 기준</span>
+          </div>
+          <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;">
+            <span class="fx-rate-big num">${fmtKrw(stats.totalValKrw)}</span>
+            <span class="row-delta num ${stats.totalProfitKrw >= 0 ? 'up' : 'down'}" style="font-size:1rem;">
+              ${stats.totalProfitKrw >= 0 ? '+' : ''}${fmtKrw(stats.totalProfitKrw)} (${fmtPct(stats.totalRetPct)})
+            </span>
+          </div>
+          <div class="verdict-krw num">달러 평가액 ${fmtUsd(stats.totalValUsd)} · 매수 원금 ${fmtKrw(stats.totalBuyKrw)}</div>
+
+          <div class="kpi-trio num">
+            <div class="kpi-item">
+              <span>주가 수익률</span>
+              <strong style="color:${stats.stockOnlyRetPct >= 0 ? 'var(--up)' : 'var(--down)'}">${fmtPct(stats.stockOnlyRetPct)}</strong>
+            </div>
+            <div class="kpi-item">
+              <span>환율 효과</span>
+              <strong style="color:${stats.fxEffectPct >= 0 ? 'var(--up)' : 'var(--down)'}">${fmtPct(stats.fxEffectPct)}</strong>
+            </div>
+            <div class="kpi-item">
+              <span>평균 환전 단가</span>
+              <strong>${stats.avgFxRate > 0 ? `${stats.avgFxRate.toFixed(1)}원` : '기록 없음'}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 자산 배분 & 자동 진단 -->
+        <div class="surface">
+          <div class="list-header" style="margin-bottom:12px;">
+            <div>
+              <h2 class="section-title">포트폴리오 비중 &amp; 진단</h2>
+              <p class="section-sub">보유 종목의 섹터 편중과 환전 효율을 자동 점검했어요</p>
+            </div>
+          </div>
+
+          <div class="alloc-bar">
+            <div style="width:${pcts['대표지수']}%; background:#3182f6;"></div>
+            <div style="width:${pcts['배당·인컴']}%; background:#00c471;"></div>
+            <div style="width:${pcts['기술·반도체']}%; background:#8b5cf6;"></div>
+            <div style="width:${pcts['채권·금']}%; background:#ff9f0a;"></div>
+          </div>
+          <div class="alloc-legend num">
+            <span><i style="background:#3182f6;"></i>대표지수 ${pcts['대표지수']}%</span>
+            <span><i style="background:#00c471;"></i>배당·인컴 ${pcts['배당·인컴']}%</span>
+            <span><i style="background:#8b5cf6;"></i>기술·반도체 ${pcts['기술·반도체']}%</span>
+            <span><i style="background:#ff9f0a;"></i>채권·금 ${pcts['채권·금']}%</span>
+          </div>
+
+          <ul class="gb-list" style="margin-top:14px;">
+            ${diagLines
+              .map(
+                (d) => `
+              <li>
+                <span class="status-pill ${d.light}"><i class="sdot ${d.light}"></i>${d.label}</span>
+                <span>${esc(d.text)}</span>
+              </li>
+            `
+              )
+              .join('')}
+          </ul>
+        </div>
+
+        <!-- 3. 내 보유 종목별 신호등 & 추가 매수 가이드 -->
+        <div class="surface">
+          <div class="list-header" style="margin-bottom:10px;">
+            <div>
+              <h2 class="section-title">보유 종목별 현재 진단 (${stats.holdings.length})</h2>
+              <p class="section-sub">내 평단가와 현재 매력 가격구간을 비교해 드립니다</p>
+            </div>
+            <button class="primary-sm-btn" type="button" id="addMoreBuyBtn">+ 매수 추가</button>
+          </div>
+          <div class="etf-list">
+            ${stats.holdings
+              .map((h) => {
+                const pz = h.etf?.priceZones;
+                const actionHint =
+                  h.stockRetPct <= -3 && pz?.light !== 'red'
+                    ? '평단 이하 · 분할 물타기 검토 가능'
+                    : h.etf?.light === 'red'
+                      ? '단기 변동성 큼 · 추가 매수 보류'
+                      : '안정 구간 · 보유 및 정기 적립 유지';
+                return `
+                <div class="etf-row" data-open-own="${h.ticker}" role="button" tabindex="0">
+                  <div class="etf-row-left">
+                    <div class="ticker-avatar ${categoryClass(h.etf?.category || '대표지수')}">${h.ticker}</div>
+                    <div class="etf-name-col">
+                      <div class="etf-name-top">
+                        <strong>${esc(h.etf?.krName || h.ticker)}</strong>
+                        <span class="etf-ticker-sub num">${h.qty}주</span>
+                      </div>
+                      <div class="etf-meta-line num">
+                        <span>평단 ${fmtUsd(h.avgPrice)} → 현재 ${fmtUsd(h.curPrice)}</span>
+                      </div>
+                      <div style="font-size:0.75rem; color:var(--blue); font-weight:600; margin-top:2px;">${actionHint}</div>
+                    </div>
+                  </div>
+                  <div class="etf-row-mid">
+                    <span class="status-pill ${h.etf?.light || 'yellow'}"><i class="sdot ${h.etf?.light || 'yellow'}"></i>${esc(pz?.status || h.etf?.actionBadge || '중립')}</span>
+                  </div>
+                  <div class="etf-row-right num">
+                    <span class="row-price">${fmtKrw(h.valKrw)}</span>
+                    <span class="row-delta ${h.totalRetPct >= 0 ? 'up' : 'down'}">${fmtPct(h.totalRetPct)}</span>
+                    <span class="row-krw">${h.profitKrw >= 0 ? '+' : ''}${fmtKrw(h.profitKrw)}</span>
+                  </div>
+                </div>
+              `;
+              })
+              .join('')}
+          </div>
+        </div>
+
+        <!-- 4. 내 보유 종목 주요 이슈 요약본 -->
+        <div class="surface">
+          <div class="list-header" style="margin-bottom:10px;">
+            <div>
+              <h2 class="section-title">내 보유 종목 주요 이슈</h2>
+              <p class="section-sub">내가 산 ETF에 직접 영향을 주는 호재·악재 요약만 모았어요</p>
+            </div>
+          </div>
+          <div class="news-feed">
+            ${myIssues.length
+              ? myIssues
+                  .map((n, idx) => {
+                    const sm = sentimentMeta(n.sentiment);
+                    const d = getNewsDigest(n);
+                    const chips = (n.affectedEtfs || [])
+                      .filter((t) => ownedTickers.has(t))
+                      .map((t) => `<button class="etf-chip" type="button" data-open-own="${t}">${t}</button>`)
+                      .join(' ');
+                    return `
+                    <details class="news-item news-digest-item" ${idx === 0 ? 'open' : ''}>
+                      <summary class="news-summary-trigger">
+                        <div class="news-top">
+                          <span class="status-pill ${sm.cls}"><i class="sdot ${sm.cls}"></i>${sm.label}</span>
+                          <span class="news-meta">${esc(n.source)} · ${esc(n.publishedAt)}</span>
+                        </div>
+                        <div class="news-head-row">
+                          <h4 class="news-title">${esc(n.title)}</h4>
+                          <span class="news-chev">▾</span>
+                        </div>
+                        <p class="news-impact">${esc(n.summary)}</p>
+                      </summary>
+                      <div class="digest-panel">
+                        <div class="digest-row"><strong>핵심</strong><span>${esc(d.what)}</span></div>
+                        <div class="digest-row"><strong>영향</strong><span>${esc(d.impact)}</span></div>
+                        <div class="digest-row"><strong>대응</strong><span>${esc(d.action)}</span></div>
+                        ${chips ? `<div class="digest-etfs"><span class="news-meta">내 보유</span> ${chips}</div>` : ''}
+                      </div>
+                    </details>
+                  `;
+                  })
+                  .join('')
+              : '<div style="padding:20px 0; text-align:center; color:var(--ink-3); font-size:0.86rem;">보유 종목을 추가하면 관련 핵심 이슈가 자동으로 모입니다.</div>'}
+          </div>
+        </div>
+      `;
+
+      $('#addMoreBuyBtn', root).addEventListener('click', () => { state.portfolioSub = 'etflog'; renderPortfolioTab(); });
+      $$('[data-open-own]', root).forEach((el) => {
+        el.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          openEtfDrawer(el.dataset.openOwn);
+        });
+      });
+      return;
+    }
+
+    // ==================== Sub-tab 2: ETF 매수 일지 ====================
+    if (state.portfolioSub === 'etflog') {
+      const defaultTicker = preselectTicker || 'SPLG';
+      const defEtf = state.data.etfs.find((e) => e.ticker === defaultTicker) || state.data.etfs[0];
+
+      root.innerHTML = `
+        <div class="surface">
+          <div class="list-header" style="margin-bottom:14px;">
+            <div>
+              <h2 class="section-title">ETF 매수 기록 추가</h2>
+              <p class="section-sub">종목을 고르면 현재가와 환율이 자동으로 채워져 간편하게 기록할 수 있어요</p>
+            </div>
+          </div>
+          <form id="buyLogForm" class="journal-form">
+            <div class="jf-grid">
+              <div class="sim-field">
+                <label for="bfDate">매수 날짜</label>
+                <input type="date" id="bfDate" value="${todayStr()}" required />
+              </div>
+              <div class="sim-field">
+                <label for="bfTicker">종목 선택</label>
+                <select id="bfTicker" class="minimal-select" style="width:100%; height:38px;">
+                  ${state.data.etfs.map((e) => `<option value="${e.ticker}" ${e.ticker === defEtf.ticker ? 'selected' : ''}>${e.ticker} · ${esc(e.krName)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="sim-field">
+                <label for="bfPrice">매수 단가 ($)</label>
+                <input type="number" id="bfPrice" step="any" min="0.01" value="${defEtf.price}" required />
+              </div>
+              <div class="sim-field">
+                <label for="bfQty">수량 (주)</label>
+                <input type="number" id="bfQty" step="any" min="0.0001" value="5" required />
+              </div>
+              <div class="sim-field">
+                <label for="bfFx">매수 시 환율 (원)</label>
+                <input type="number" id="bfFx" step="any" min="500" value="${curFx}" required />
+              </div>
+              <div class="sim-field">
+                <label for="bfMemo">한 줄 메모 (선택)</label>
+                <input type="text" id="bfMemo" placeholder="예: RSI 과매도 1차 분할" maxlength="50" />
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap;">
+              <span class="muted-preview num" id="bfPreview"></span>
+              <button class="primary-sm-btn" type="submit" style="padding:10px 18px; font-size:0.86rem;">매수 일지 저장</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="surface">
+          <div class="list-header" style="margin-bottom:10px;">
+            <h2 class="section-title">내 매수 일지 내역 (${state.buyLogs.length}건)</h2>
+            ${state.buyLogs.length ? '<button class="ghost-btn" id="clearBuyLogsBtn" type="button" style="height:30px; font-size:0.75rem; color:var(--red);">전체 삭제</button>' : ''}
+          </div>
+          <div class="journal-list">
+            ${state.buyLogs.length
+              ? [...state.buyLogs]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((log) => {
+                    const etf = state.data.etfs.find((e) => e.ticker === log.ticker);
+                    const costKrw = log.price * log.qty * log.fxRate;
+                    const curKrw = (etf ? etf.price : log.price) * log.qty * curFx;
+                    const ret = ((curKrw - costKrw) / Math.max(1, costKrw)) * 100;
+                    return `
+                    <div class="j-row">
+                      <div class="j-left">
+                        <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                          <button class="etf-chip" type="button" data-open-buy="${log.ticker}">${log.ticker}</button>
+                          <strong class="num" style="font-size:0.9rem;">${log.qty}주 × ${fmtUsd(log.price)}</strong>
+                          <span class="news-meta">${esc(log.date)} · 환율 ${Number(log.fxRate).toLocaleString('ko-KR')}원</span>
+                        </div>
+                        ${log.memo ? `<div style="font-size:0.8rem; color:var(--ink-2); margin-top:3px;">${esc(log.memo)}</div>` : ''}
+                      </div>
+                      <div class="j-right num">
+                        <div style="font-weight:700; font-size:0.88rem;">${fmtKrw(costKrw)}</div>
+                        <div class="row-delta ${ret >= 0 ? 'up' : 'down'}" style="font-size:0.78rem;">현재 ${fmtPct(ret)}</div>
+                        <button class="del-btn" type="button" data-del-buy="${log.id}">삭제</button>
+                      </div>
+                    </div>
+                  `;
+                  })
+                  .join('')
+              : '<div style="padding:24px 0; text-align:center; color:var(--ink-3); font-size:0.86rem;">아직 매수 기록이 없습니다. 위에서 첫 매수를 기록해 보세요.</div>'}
+          </div>
+        </div>
+      `;
+
+      const updateBuyPreview = () => {
+        const p = Number($('#bfPrice', root).value) || 0;
+        const q = Number($('#bfQty', root).value) || 0;
+        const fx = Number($('#bfFx', root).value) || curFx;
+        $('#bfPreview', root).textContent = `예상 매수액: ${fmtUsd(p * q)} (약 ${fmtKrw(p * q * fx)})`;
+      };
+      updateBuyPreview();
+
+      $('#bfTicker', root).addEventListener('change', (e) => {
+        const found = state.data.etfs.find((x) => x.ticker === e.target.value);
+        if (found) $('#bfPrice', root).value = found.price;
+        updateBuyPreview();
+      });
+      ['#bfPrice', '#bfQty', '#bfFx'].forEach((id) => $(id, root).addEventListener('input', updateBuyPreview));
+
+      $('#buyLogForm', root).addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        state.buyLogs.push({
+          id: `b_${Date.now()}`,
+          date: $('#bfDate', root).value || todayStr(),
+          ticker: $('#bfTicker', root).value,
+          price: Number($('#bfPrice', root).value),
+          qty: Number($('#bfQty', root).value),
+          fxRate: Number($('#bfFx', root).value) || curFx,
+          memo: $('#bfMemo', root).value.trim()
+        });
+        saveBuyLogs();
+        renderPortfolioTab($('#bfTicker', root).value);
+        showToast('ETF 매수 일지에 저장했어요.');
+      });
+
+      $$('[data-del-buy]', root).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.buyLogs = state.buyLogs.filter((x) => x.id !== btn.dataset.delBuy);
+          saveBuyLogs();
+          renderPortfolioTab();
+          showToast('기록을 삭제했어요.');
+        });
+      });
+
+      $$('[data-open-buy]', root).forEach((btn) => {
+        btn.addEventListener('click', () => openEtfDrawer(btn.dataset.openBuy));
+      });
+
+      const clearBtn = $('#clearBuyLogsBtn', root);
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          state.buyLogs = [];
+          saveBuyLogs();
+          renderPortfolioTab();
+          showToast('매수 일지를 모두 비웠어요.');
+        });
+      }
+      return;
+    }
+
+    // ==================== Sub-tab 3: 환전 일지 ====================
+    root.innerHTML = `
+      <div class="surface">
+        <div class="hero-eyebrow">
+          <span class="eyebrow-text">내 달러 환전 현황</span>
+          <span class="source-tag">현재 환율 ${curFx.toLocaleString('ko-KR')}원</span>
+        </div>
+        <div class="kpi-trio num" style="margin-top:4px; padding-top:0; border-top:none;">
+          <div class="kpi-item">
+            <span>내 평균 환전 단가</span>
+            <strong style="font-size:1.15rem; color:var(--blue);">${stats.avgFxRate > 0 ? `${stats.avgFxRate.toFixed(1)}원` : '-'}</strong>
+          </div>
+          <div class="kpi-item">
+            <span>누적 확보 달러</span>
+            <strong style="font-size:1.15rem;">${fmtUsd(stats.totalFxUsd)}</strong>
+          </div>
+          <div class="kpi-item">
+            <span>현재 대비 환차손익</span>
+            <strong style="font-size:1.05rem; color:${stats.fxDiffPerUsd >= 0 ? 'var(--up)' : 'var(--down)'}">
+              ${stats.avgFxRate > 0 ? `${stats.fxDiffPerUsd >= 0 ? '+' : ''}${stats.fxDiffPerUsd.toFixed(1)}원/$` : '-'}
+            </strong>
+          </div>
+        </div>
+        ${stats.totalFxUsd > 0 ? `<div class="verdict-krw num" style="margin-top:10px;">총 환전 원화 ${fmtKrw(stats.totalFxKrw)} · ETF 매수 사용 후 잔여 달러 추정: <strong>${fmtUsd(Math.max(0, stats.estRemainingUsd))}</strong></div>` : ''}
+      </div>
+
+      <div class="surface">
+        <div class="list-header" style="margin-bottom:14px;">
+          <div>
+            <h2 class="section-title">환전 기록 추가</h2>
+            <p class="section-sub">원화와 적용 환율을 넣으면 내 평균 환전 단가가 자동 계산됩니다</p>
+          </div>
+        </div>
+        <form id="fxLogForm" class="journal-form">
+          <div class="jf-grid">
+            <div class="sim-field">
+              <label for="ffDate">환전 날짜</label>
+              <input type="date" id="ffDate" value="${todayStr()}" required />
+            </div>
+            <div class="sim-field">
+              <label for="ffKrw">환전 금액 (원)</label>
+              <input type="number" id="ffKrw" step="any" min="1000" value="1000000" required />
+            </div>
+            <div class="sim-field">
+              <label for="ffRate">적용 환율 (원/$)</label>
+              <input type="number" id="ffRate" step="any" min="500" value="${curFx}" required />
+            </div>
+            <div class="sim-field" style="grid-column: 1 / -1;">
+              <label for="ffMemo">한 줄 메모 (선택)</label>
+              <input type="text" id="ffMemo" placeholder="예: 1,340원대 분할 환전 1차" maxlength="50" />
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <span class="muted-preview num" id="ffPreview"></span>
+            <button class="primary-sm-btn" type="submit" style="padding:10px 18px; font-size:0.86rem;">환전 일지 저장</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="surface">
+        <div class="list-header" style="margin-bottom:10px;">
+          <h2 class="section-title">내 환전 일지 내역 (${state.fxLogs.length}건)</h2>
+          ${state.fxLogs.length ? '<button class="ghost-btn" id="clearFxLogsBtn" type="button" style="height:30px; font-size:0.75rem; color:var(--red);">전체 삭제</button>' : ''}
+        </div>
+        <div class="journal-list">
+          ${state.fxLogs.length
+            ? [...state.fxLogs]
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map((log) => {
+                  const diff = curFx - Number(log.rate);
+                  return `
+                  <div class="j-row">
+                    <div class="j-left">
+                      <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                        <strong class="num" style="font-size:0.92rem;">${fmtKrw(log.krw)} → ${fmtUsd(log.usd)}</strong>
+                        <span class="news-meta">${esc(log.date)} · 적용 ${Number(log.rate).toLocaleString('ko-KR')}원</span>
+                      </div>
+                      ${log.memo ? `<div style="font-size:0.8rem; color:var(--ink-2); margin-top:3px;">${esc(log.memo)}</div>` : ''}
+                    </div>
+                    <div class="j-right num">
+                      <div class="row-delta ${diff >= 0 ? 'up' : 'down'}" style="font-size:0.8rem;">${diff >= 0 ? '+' : ''}${diff.toFixed(1)}원/$</div>
+                      <button class="del-btn" type="button" data-del-fx="${log.id}">삭제</button>
+                    </div>
+                  </div>
+                `;
+                })
+                .join('')
+            : '<div style="padding:24px 0; text-align:center; color:var(--ink-3); font-size:0.86rem;">아직 환전 기록이 없습니다. 위에서 분할 환전 내역을 기록해 보세요.</div>'}
+        </div>
+      </div>
+    `;
+
+    const updateFxPreview = () => {
+      const k = Number($('#ffKrw', root).value) || 0;
+      const r = Math.max(500, Number($('#ffRate', root).value) || curFx);
+      $('#ffPreview', root).textContent = `확보 달러: ${fmtUsd(k / r)}`;
+    };
+    updateFxPreview();
+    ['#ffKrw', '#ffRate'].forEach((id) => $(id, root).addEventListener('input', updateFxPreview));
+
+    $('#fxLogForm', root).addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const krw = Number($('#ffKrw', root).value);
+      const rate = Number($('#ffRate', root).value);
+      state.fxLogs.push({
+        id: `fx_${Date.now()}`,
+        date: $('#ffDate', root).value || todayStr(),
+        krw,
+        rate,
+        usd: +(krw / rate).toFixed(2),
+        memo: $('#ffMemo', root).value.trim()
+      });
+      saveFxLogs();
+      renderPortfolioTab();
+      showToast('환전 일지에 저장했어요.');
+    });
+
+    $$('[data-del-fx]', root).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.fxLogs = state.fxLogs.filter((x) => x.id !== btn.dataset.delFx);
+        saveFxLogs();
+        renderPortfolioTab();
+        showToast('환전 기록을 삭제했어요.');
+      });
+    });
+
+    const clearFxBtn = $('#clearFxLogsBtn', root);
+    if (clearFxBtn) {
+      clearFxBtn.addEventListener('click', () => {
+        state.fxLogs = [];
+        saveFxLogs();
+        renderPortfolioTab();
+        showToast('환전 일지를 모두 비웠어요.');
+      });
+    }
   }
 
   // ==================== 탭 · 테마 · 데이터 로드 ====================
   function switchTab(tab, updateUrl = true) {
-    const valid = ['dashboard', 'fx', 'macro'].includes(tab) ? tab : 'dashboard';
+    const valid = ['dashboard', 'fx', 'macro', 'portfolio'].includes(tab) ? tab : 'dashboard';
     state.activeTab = valid;
     $$('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${valid}`));
     $$('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === valid));
     $$('.m-tab[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === valid));
+    if (valid === 'portfolio' && state.data) renderPortfolioTab();
     if (updateUrl && location.protocol.startsWith('http')) {
       const url = new URL(location.href);
       url.searchParams.set('tab', valid);
@@ -968,11 +1931,12 @@
     renderEtfList();
     renderFxTab();
     renderMacroTab();
+    renderPortfolioTab();
 
-    // URL 파라미터 ?tab=macro 및 ?etf=QQQM 처리
+    // URL 파라미터 ?tab=macro / portfolio 및 ?etf=QQQM 처리
     const urlParams = new URLSearchParams(location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam && ['dashboard', 'fx', 'macro'].includes(tabParam)) {
+    if (tabParam && ['dashboard', 'fx', 'macro', 'portfolio'].includes(tabParam)) {
       switchTab(tabParam, false);
     }
     const etfParam = urlParams.get('etf');
@@ -1032,7 +1996,47 @@
     $('#themeToggle').addEventListener('click', toggleTheme);
     $('#refreshBtn').addEventListener('click', handleRefresh);
     $('#mobileGuideBtn').addEventListener('click', openGuideModal);
-    $('#mobileGuideTab').addEventListener('click', openGuideModal);
+
+    // 내 투자 서브탭 및 JSON 백업/복원
+    $$('#portfolioSubTabs .seg-btn').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.portfolioSub = b.dataset.sub;
+        renderPortfolioTab();
+      });
+    });
+
+    $('#exportJournalBtn').addEventListener('click', () => {
+      const payload = JSON.stringify({ buyLogs: state.buyLogs, fxLogs: state.fxLogs, favs: state.favs }, null, 2);
+      const blob = new Blob([payload], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `gemini-econ-journal-${todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('매수·환전 일지 백업 파일을 저장했어요.');
+    });
+
+    $('#importJournalBtn').addEventListener('click', () => $('#importJournalFile').click());
+    $('#importJournalFile').addEventListener('change', (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result));
+          if (Array.isArray(parsed.buyLogs)) { state.buyLogs = parsed.buyLogs; saveBuyLogs(); }
+          if (Array.isArray(parsed.fxLogs)) { state.fxLogs = parsed.fxLogs; saveFxLogs(); }
+          if (Array.isArray(parsed.favs)) { state.favs = parsed.favs; localStorage.setItem(FAV_KEY, JSON.stringify(state.favs)); }
+          renderEtfList();
+          renderPortfolioTab();
+          showToast('백업한 일지를 복원했어요.');
+        } catch {
+          showToast('올바른 백업 JSON 파일이 아닙니다.');
+        }
+      };
+      reader.readAsText(file);
+      ev.target.value = '';
+    });
 
     $('#drawerFavBtn').addEventListener('click', () => {
       if (state.selectedTicker) toggleFav(state.selectedTicker);
@@ -1096,6 +2100,16 @@
         if (state.data) renderGlobalNews(state.data.macro.globalNews);
       });
     });
+
+    const toggleAllBtn = $('#toggleAllNewsBtn');
+    if (toggleAllBtn) {
+      toggleAllBtn.addEventListener('click', () => {
+        const items = $$('#globalNewsList .news-digest-item');
+        const allOpen = items.length > 0 && items.every((el) => el.open);
+        items.forEach((el) => { el.open = !allOpen; });
+        toggleAllBtn.textContent = allOpen ? '전체 펼치기' : '전체 접기';
+      });
+    }
   }
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

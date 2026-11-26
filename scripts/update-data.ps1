@@ -401,50 +401,89 @@ foreach ($etf in $existingData.etfs) {
     }
 }
 
-function Get-BloombergRss {
-    param([int]$Limit = 4)
-    $feeds = @(
-        'https://feeds.bloomberg.com/markets/news.rss',
-        'https://feeds.bloomberg.com/economics/news.rss'
-    )
-    $list = @()
-    foreach ($feedUrl in $feeds) {
-        try {
-            $resp = Invoke-WebRequest -Uri $feedUrl -UseBasicParsing -Headers @{ 'User-Agent' = $UserAgent } -TimeoutSec 10
-            [xml]$xml = $resp.Content
-            $items = $xml.rss.channel.item | Select-Object -First ([math]::Ceiling($Limit / 2))
-            foreach ($it in $items) {
-                $title = ([string]$it.title).Trim()
-                if ([string]::IsNullOrWhiteSpace($title)) { continue }
-                $sent = Get-SentimentInfo -Text $title
-                $pubDate = ''
-                try { $pubDate = ([DateTime]::Parse($it.pubDate)).ToString('MM.dd HH:mm') } catch { $pubDate = (Get-Date).ToString('MM.dd') }
-                $summaryText = switch ($sent.sentiment) {
-                    'positive' { '블룸버그 마켓 속보: 시장에 우호적인 흐름으로 분류된 기사입니다.' }
-                    'negative' { '블룸버그 마켓 속보: 단기 변동성·경계 요인으로 분류된 기사입니다.' }
-                    default    { '블룸버그 마켓 속보: 미국 증시·거시 방향성 참고 기사입니다.' }
-                }
-                $list += [PSCustomObject]@{
-                    title       = "[블룸버그] $title"
-                    source      = 'Bloomberg'
-                    publishedAt = $pubDate
-                    sentiment   = $sent.sentiment
-                    impactLevel = $sent.impact
-                    summary     = $summaryText
-                    url         = [string]$it.link
-                }
-            }
-        } catch {
-            Write-Warning "Bloomberg RSS 조회 실패 ($feedUrl): $($_.Exception.Message)"
-        }
-    }
-    return $list | Select-Object -First $Limit
+function Test-MostlyKorean {
+    param([string]$Text)
+    $kr = ([regex]::Matches($Text, '[가-힣]')).Count
+    $en = ([regex]::Matches($Text, '[A-Za-z]')).Count
+    return ($kr -ge 4 -and $kr -ge ($en * 0.25))
 }
 
-# 5. 글로벌/거시경제 최신 뉴스 업데이트 (Bloomberg RSS + Google News 병합)
-$bbNews = Get-BloombergRss -Limit 4
-$krMacroNews = Get-GoogleNewsRss -Query '블룸버그 미국증시 연준 금리 관세 CPI' -Limit 4
-$macroNews = @($bbNews) + @($krMacroNews) | Select-Object -First 7
+function ConvertTo-Korean {
+    param([string]$Text)
+    $clean = ([string]$Text).Trim()
+    if ([string]::IsNullOrWhiteSpace($clean)) { return $null }
+    if (Test-MostlyKorean -Text $clean) { return $clean }
+    try {
+        $q = [Uri]::EscapeDataString($clean)
+        $url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=$q"
+        $resp = Invoke-RestMethod -Uri $url -Headers @{ 'User-Agent' = $UserAgent } -TimeoutSec 8
+        $sb = ''
+        foreach ($seg in $resp[0]) { $sb += [string]$seg[0] }
+        $sb = $sb.Trim()
+        if (Test-MostlyKorean -Text $sb) { return $sb }
+    } catch {}
+    return $null
+}
+
+function Get-SmartSummary {
+    param([string]$Title, [string]$RawDesc, [string]$Sentiment)
+    $desc = ([string]$RawDesc -replace '<[^>]+>', ' ' -replace '\s+', ' ').Trim()
+    if ($desc.Length -ge 18 -and (Test-MostlyKorean -Text $desc) -and -not $desc.StartsWith($Title.Substring(0, [math]::Min(14, $Title.Length)))) {
+        if ($desc.Length -gt 92) { return $desc.Substring(0, 91).Trim() + '…' }
+        return $desc
+    }
+    if ($Title -match '관세|무역|중국|유럽|지정학|전쟁|중동') {
+        return $(if ($Sentiment -eq 'positive') { '무역·지정학 긴장 완화 조짐 → 글로벌 공급망·증시 투자심리 개선' } else { '관세·지정학 불확실성 확대 → 반도체·다국적 기업 마진 부담 주의' })
+    }
+    if ($Title -match '연준|금리|FOMC|파월|물가|CPI|PCE|인플레이션') {
+        return $(if ($Sentiment -eq 'positive') { '물가 둔화·금리 완화 기대 → 성장주(QQQM)·장기채(TLT)에 우호적' } else { '고물가·긴축 경계 확대 → 기술주 부담, 초단기채(SGOV)·배당주 유리' })
+    }
+    if ($Title -match '반도체|엔비디아|AI|나스닥|빅테크') {
+        return $(if ($Sentiment -eq 'positive') { 'AI·빅테크 실적 및 수요 모멘텀 강화 → QQQM·SOXX·SMH 상승 동력' } else { 'AI 밸류에이션·차익실현 압력 → 반도체·기술주 단기 변동성 주의' })
+    }
+    return $(if ($Sentiment -eq 'positive') { '미국 증시와 관련 ETF 수급·실적에 긍정적인 모멘텀으로 평가되는 이슈' } elseif ($Sentiment -eq 'negative') { '단기 투자심리 위축 및 변동성 확대 요인으로 분할 대응이 필요한 이슈' } else { '미국 시장 방향성과 섹터 흐름을 점검하기 위해 참고할 핵심 이슈' })
+}
+
+function Get-EnglishRssTranslated {
+    param([string]$FeedUrl, [string]$SourceName, [int]$Limit = 2)
+    $list = @()
+    try {
+        $resp = Invoke-WebRequest -Uri $FeedUrl -UseBasicParsing -Headers @{ 'User-Agent' = $UserAgent } -TimeoutSec 10
+        [xml]$xml = $resp.Content
+        $items = $xml.rss.channel.item | Select-Object -First ($Limit + 2)
+        foreach ($it in $items) {
+            if ($list.Count -ge $Limit) { break }
+            $rawTitle = (([string]$it.title) -replace '<[^>]+>', ' ' -replace '\s+', ' ').Trim()
+            $rawDesc  = (([string]$it.description) -replace '<[^>]+>', ' ' -replace '\s+', ' ').Trim()
+            if ([string]::IsNullOrWhiteSpace($rawTitle)) { continue }
+            $koTitle = ConvertTo-Korean -Text $rawTitle
+            if ([string]::IsNullOrWhiteSpace($koTitle)) { continue }
+            $koDesc = if ($rawDesc.Length -gt 0) { ConvertTo-Korean -Text ($rawDesc.Substring(0, [math]::Min(160, $rawDesc.Length))) } else { '' }
+            $sent = Get-SentimentInfo -Text "$rawTitle $koTitle $koDesc"
+            $pubDate = ''
+            try { $pubDate = ([DateTime]::Parse($it.pubDate)).ToString('MM.dd HH:mm') } catch { $pubDate = (Get-Date).ToString('MM.dd') }
+            $list += [PSCustomObject]@{
+                title       = $koTitle
+                source      = $SourceName
+                publishedAt = $pubDate
+                sentiment   = $sent.sentiment
+                impactLevel = $sent.impact
+                summary     = Get-SmartSummary -Title $koTitle -RawDesc $koDesc -Sentiment $sent.sentiment
+                url         = [string]$it.link
+            }
+        }
+    } catch {
+        Write-Warning "$SourceName RSS 조회 실패: $($_.Exception.Message)"
+    }
+    return $list
+}
+
+# 5. 다매체 글로벌·국제정황 뉴스 (Bloomberg + CNBC + 로이터/WSJ + 국내 경제지, 100% 한글 번역·요약)
+$bbNews   = Get-EnglishRssTranslated -FeedUrl 'https://feeds.bloomberg.com/markets/news.rss' -SourceName 'Bloomberg' -Limit 2
+$cnbcNews = Get-EnglishRssTranslated -FeedUrl 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664' -SourceName 'CNBC' -Limit 2
+$wireNews = Get-GoogleNewsRss -Query '로이터 OR WSJ OR 파이낸셜타임스 미국 증시 연준 관세' -Limit 3
+$krNews   = Get-GoogleNewsRss -Query '미국 증시 연준 금리 관세 달러 반도체 국채' -Limit 3
+$macroNews = @($bbNews) + @($cnbcNews) + @($wireNews) + @($krNews) | Select-Object -First 8
 if ($macroNews.Count -gt 0) {
     $liveSuccessCount++
     $mapped = @()

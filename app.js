@@ -1454,24 +1454,79 @@
     return [...set];
   }
 
-  async function handleCopyShareLink() {
-    if (!window.SimpleShare) return;
+  async function buildShareLink() {
+    if (!window.SimpleShare) return null;
     if (!state.buyLogs.length && !state.fxLogs.length) {
       showToast('먼저 매수 또는 환전 기록을 1건 이상 추가해 주세요.');
-      return;
+      return null;
     }
     const token = await window.SimpleShare.encodeShareToken(getCurrentAuthorName(), state.buyLogs, state.fxLogs);
     const base =
       location.origin && location.protocol.startsWith('http')
         ? `${location.origin}${location.pathname}`
         : location.href.split('?')[0].split('#')[0];
-    const link = `${base}?tab=portfolio&share=${token}`;
+    return `${base}?tab=portfolio&share=${token}`;
+  }
+
+  async function handleCopyShareLink() {
+    const link = await buildShareLink();
+    if (!link) return;
     try {
       await navigator.clipboard.writeText(link);
       showToast('공유 링크 복사 완료! 카톡으로 보내면 상대방이 바로 합칠 수 있어요.');
     } catch {
       prompt('아래 링크를 복사해 카톡으로 보내세요:', link);
     }
+  }
+
+  async function openShareQrModal() {
+    const link = await buildShareLink();
+    if (!link) return;
+    const body = $('#shareQrBody');
+    if (!body) return;
+
+    let qrHtml = '';
+    if (window.QRCodeSvg) {
+      try {
+        qrHtml = window.QRCodeSvg.renderQrSvg(link, 210);
+      } catch {
+        qrHtml = '<div style="padding:24px 12px; text-align:center; color:var(--ink-2); font-size:0.82rem; line-height:1.5;">기록 건수가 많아 QR 크기(520자)를 넘었습니다.<br/>아래 <strong>공유 링크 복사</strong> 버튼으로 카톡에 보내주세요!</div>';
+      }
+    } else {
+      qrHtml = '<div style="padding:24px 12px; text-align:center; color:var(--red); font-size:0.82rem;">qr.js 파일이 필요합니다.</div>';
+    }
+
+    body.innerHTML = `
+      <div class="qr-stage">
+        <div class="qr-box" aria-label="투자 일지 공유 QR 코드">${qrHtml}</div>
+        <div class="qr-caption">상대방 카메라로 비추면 바로 일지를 합칠 수 있어요</div>
+      </div>
+      <div class="news-meta" style="text-align:center;">
+        작성자 ${renderAuthorBadge(getCurrentAuthorName())} · 매수 ${state.buyLogs.length}건 · 환전 ${state.fxLogs.length}건 포함
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button class="ghost-btn" id="shareQrCloseInlineBtn" type="button" style="height:36px;">닫기</button>
+        <button class="primary-sm-btn" id="shareQrCopyBtn" type="button" style="padding:9px 16px; font-size:0.84rem;">카톡용 링크 복사</button>
+      </div>
+    `;
+
+    $('#shareQrCloseInlineBtn', body).addEventListener('click', closeShareQrModal);
+    $('#shareQrCopyBtn', body).addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast('공유 링크 복사 완료! 카톡으로 보내세요.');
+      } catch {
+        prompt('아래 링크를 복사하세요:', link);
+      }
+    });
+
+    $('#shareQrBackdrop').classList.add('open');
+    $('#shareQrBackdrop').setAttribute('aria-hidden', 'false');
+  }
+
+  function closeShareQrModal() {
+    $('#shareQrBackdrop').classList.remove('open');
+    $('#shareQrBackdrop').setAttribute('aria-hidden', 'true');
   }
 
   function renderShareBar() {
@@ -1487,11 +1542,13 @@
         </button>
       </div>
       <div class="share-bar-actions">
+        <button class="ghost-btn" id="openShareQrBtn" type="button" style="height:30px; font-size:0.76rem;">공유 QR</button>
         <button class="ghost-btn accent" id="copyShareLinkBtn" type="button" style="height:30px; font-size:0.76rem;">공유 링크 복사</button>
       </div>
     `;
 
     $('#openShareModalNickBtn', bar).addEventListener('click', openShareModal);
+    $('#openShareQrBtn', bar).addEventListener('click', openShareQrModal);
     $('#copyShareLinkBtn', bar).addEventListener('click', handleCopyShareLink);
 
     // 작성자 필터 칩 렌더링 (2명 이상일 때 표시)
@@ -2767,6 +2824,15 @@
       });
     }
 
+    const closeShareQrBtn = $('#closeShareQrBtn');
+    if (closeShareQrBtn) closeShareQrBtn.addEventListener('click', closeShareQrModal);
+    const shareQrBackdrop = $('#shareQrBackdrop');
+    if (shareQrBackdrop) {
+      shareQrBackdrop.addEventListener('click', (e) => {
+        if (e.target === shareQrBackdrop) closeShareQrModal();
+      });
+    }
+
     const qrInput = $('#qrUrlInput');
     if (qrInput) {
       qrInput.addEventListener('input', (e) => updateQrDisplay(e.target.value));
@@ -2788,6 +2854,7 @@
         closeGuideModal();
         closeShareModal();
         closeReceiveShareModal();
+        closeShareQrModal();
       }
     });
 

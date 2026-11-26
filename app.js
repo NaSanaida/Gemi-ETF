@@ -7,6 +7,7 @@
   const FAV_KEY = 'etf_pulse_favs_v1';
   const ETF_LOG_KEY = 'etf_pulse_buy_logs_v1';
   const FX_LOG_KEY = 'etf_pulse_fx_logs_v1';
+  const LIVE_CACHE_KEY = 'etf_pulse_live_cache_v1';
 
   const loadJsonStorage = (key, fallback) => {
     try {
@@ -1920,13 +1921,36 @@
 
   async function loadData(bust = false) {
     try {
-      const res = await fetch(`./data/market-data.json${bust ? `?t=${Date.now()}` : ''}`, { cache: 'no-store' });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`./data/market-data.json${bust ? `?t=${Date.now()}` : ''}`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      clearTimeout(timer);
       if (!res.ok) throw new Error('fetch err');
       state.data = await res.json();
     } catch {
       if (window.MARKET_DATA) state.data = window.MARKET_DATA;
       else return showToast('데이터를 불러오지 못했습니다.');
     }
+
+    // 브라우저에서 방금 버튼으로 실시간 갱신한 캐시가 서버 파일보다 최신이면 유지
+    if (!bust) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(LIVE_CACHE_KEY) || 'null');
+        if (
+          cached &&
+          cached.meta?.updatedAt &&
+          cached.etfs?.length === state.data.etfs?.length &&
+          cached.macro?.globalStory &&
+          new Date(cached.meta.updatedAt) > new Date(state.data.meta.updatedAt)
+        ) {
+          state.data = cached;
+        }
+      } catch {}
+    }
+
     renderOverview();
     renderEtfList();
     renderFxTab();
@@ -1948,22 +1972,262 @@
     }
   }
 
+  // ==================== 버튼 클릭 시 브라우저에서 직접 실시간 최신화 ====================
+  function formatNowKst() {
+    const now = new Date();
+    const kst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const y = kst.getFullYear();
+    const m = String(kst.getMonth() + 1).padStart(2, '0');
+    const d = String(kst.getDate()).padStart(2, '0');
+    const hh = String(kst.getHours()).padStart(2, '0');
+    const mm = String(kst.getMinutes()).padStart(2, '0');
+    return {
+      iso: `${y}-${m}-${d}T${hh}:${mm}:00+09:00`,
+      label: `${m}.${d} (${days[kst.getDay()]}) ${hh}:${mm} 기준`
+    };
+  }
+
+  async function fetchJsonWithTimeout(url, ms = 5500) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  async function fetchLiveUsdKrw() {
+    // 1순위: open.er-api.com (CORS 지원, 무료 실시간 환율)
+    const r1 = await fetchJsonWithTimeout('https://open.er-api.com/v6/latest/USD', 5000);
+    if (r1?.rates?.KRW) return Math.round(Number(r1.rates.KRW) * 100) / 100;
+    // 2순위: frankfurter.app (유럽중앙은행 공식 환율, CORS 지원)
+    const r2 = await fetchJsonWithTimeout('https://api.frankfurter.app/latest?from=USD&to=KRW', 5000);
+    if (r2?.rates?.KRW) return Math.round(Number(r2.rates.KRW) * 100) / 100;
+    return null;
+  }
+
+  async function fetchYahooLiveBrowser(symbol) {
+    const target = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
+    const attempts = [
+      async () => {
+        const w = await fetchJsonWithTimeout(`https://api.allorigins.win/get?url=${encodeURIComponent(target)}`, 4500);
+        return w?.contents ? JSON.parse(w.contents) : null;
+      },
+      async () => fetchJsonWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(target)}`, 4500)
+    ];
+    for (const run of attempts) {
+      let json = null;
+      try { json = await run(); } catch { json = null; }
+      const res = json?.chart?.result?.[0];
+      if (!res) continue;
+      const meta = res.meta || {};
+      const ts = res.timestamp || [];
+      const rawCloses = res.indicators?.quote?.[0]?.close || [];
+      const points = [];
+      for (let i = 0; i < ts.length; i++) {
+        if (rawCloses[i] != null) {
+          points.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: Math.round(Number(rawCloses[i]) * 100) / 100 });
+        }
+      }
+      if (points.length >= 2) {
+        const cur = meta.regularMarketPrice != null ? Math.round(Number(meta.regularMarketPrice) * 100) / 100 : points[points.length - 1].close;
+        const prev = meta.chartPreviousClose != null && points.length < 3 ? Number(meta.chartPreviousClose) : points[points.length - 2].close;
+        return { cur, prev, points };
+      }
+    }
+    return null;
+  }
+
+  function calcBrowserRsi14(closes) {
+    if (closes.length < 15) return 50;
+    let gains = 0;
+    let losses = 0;
+    for (let i = closes.length - 14; i < closes.length; i++) {
+      const d = closes[i] - closes[i - 1];
+      if (d > 0) gains += d;
+      else losses += Math.abs(d);
+    }
+    if (losses === 0) return 100;
+    return Math.round((100 - 100 / (1 + gains / losses)) * 10) / 10;
+  }
+
+  async function runBrowserLiveRefresh() {
+    let fxUpdated = false;
+    let etfUpdatedCount = 0;
+
+    // 1) 실시간 원/달러 환율 업데이트
+    const liveFx = await fetchLiveUsdKrw();
+    if (liveFx && liveFx > 800 && liveFx < 2500) {
+      fxUpdated = true;
+      const fx = state.data.fx;
+      const prevFx = fx.usdKrw || liveFx;
+      fx.usdKrw = liveFx;
+      if (prevFx > 0 && Math.abs(liveFx - prevFx) > 0.01) {
+        fx.changePct = Math.round(((liveFx - prevFx) / prevFx) * 10000) / 100;
+      }
+      fx.high52w = Math.max(fx.high52w, liveFx);
+      fx.low52w = Math.min(fx.low52w, liveFx);
+      const pct1Y = fx.high52w > fx.low52w ? Math.round(((liveFx - fx.low52w) / (fx.high52w - fx.low52w)) * 100) : fx.percentile1Y;
+      fx.percentile1Y = Math.max(1, Math.min(99, pct1Y));
+      fx.light = fx.percentile1Y <= 40 ? 'green' : fx.percentile1Y <= 70 ? 'yellow' : 'red';
+      fx.recommendation =
+        fx.light === 'green'
+          ? '1년 평균보다 낮아 분할 환전에 유리해요'
+          : fx.light === 'yellow'
+            ? '1년 중간 구간 · 정기 분할 환전이 적합해요'
+            : '1년 상단권 · 환율 부담이 커 소액 분할 권장';
+      if (Array.isArray(fx.history) && fx.history.length) {
+        fx.history[fx.history.length - 1] = { date: todayStr(), value: liveFx };
+      }
+      state.data.overview.fxSignal.light = fx.light;
+      state.data.overview.fxSignal.score = 100 - fx.percentile1Y;
+      state.data.overview.fxSignal.label = fx.light === 'green' ? '환전 유리' : fx.light === 'yellow' ? '분할 환전' : '환율 부담';
+      state.data.overview.fxSignal.summary = `1년 중 ${fx.percentile1Y <= 40 ? '싼 편' : fx.percentile1Y <= 70 ? '보통' : '비싼 편'} (하위 ${fx.percentile1Y}%)`;
+    }
+
+    // 2) VIX 및 16종 ETF 실시간 시세 병렬 조회 (4개씩 배치)
+    const vixRes = await fetchYahooLiveBrowser('^VIX');
+    if (vixRes) {
+      state.data.overview.marketSentiment.vix = vixRes.cur;
+      const vixInd = state.data.macro.indicators.find((x) => x.id === 'vix');
+      if (vixInd) {
+        vixInd.value = String(vixRes.cur);
+        vixInd.numValue = vixRes.cur;
+        vixInd.light = vixRes.cur < 18 ? 'green' : vixRes.cur < 25 ? 'yellow' : 'red';
+        vixInd.tag = vixRes.cur < 18 ? '변동성 안정' : vixRes.cur < 25 ? '경계 구간' : '변동성 확대';
+      }
+    }
+
+    const etfs = state.data.etfs;
+    for (let i = 0; i < etfs.length; i += 4) {
+      const batch = etfs.slice(i, i + 4);
+      const results = await Promise.all(batch.map((e) => fetchYahooLiveBrowser(e.ticker)));
+      results.forEach((res, idx) => {
+        if (!res) return;
+        etfUpdatedCount++;
+        const etf = batch[idx];
+        const closes = res.points.map((p) => p.close);
+        const cur = res.cur;
+        const prev = res.prev || cur;
+        const high52 = Math.max(...closes, cur);
+        const low52 = Math.min(...closes, cur);
+        const mdd = Math.round(((cur - high52) / high52) * 10000) / 100;
+        const rsi14 = calcBrowserRsi14(closes);
+        const maSlice = closes.slice(-Math.min(200, closes.length));
+        const ma200 = Math.round((maSlice.reduce((a, b) => a + b, 0) / maSlice.length) * 100) / 100;
+        const ma200Diff = ma200 > 0 ? Math.round(((cur - ma200) / ma200) * 10000) / 100 : 0;
+
+        const pos = etf.news.filter((n) => n.sentiment === 'positive').length;
+        const neg = etf.news.filter((n) => n.sentiment === 'negative').length;
+        const newsScore = Math.min(95, Math.max(15, 50 + (pos - neg) * 12));
+        const valScore = Math.min(95, Math.max(25, Math.round(55 + Math.abs(mdd) * 2.5)));
+        const techScore = rsi14 < 35 ? 86 : rsi14 < 48 ? 74 : rsi14 < 62 ? 58 : rsi14 < 72 ? 42 : 28;
+        const fxBonus = 100 - state.data.fx.percentile1Y;
+        const score = Math.round(valScore * 0.35 + techScore * 0.3 + newsScore * 0.2 + fxBonus * 0.15);
+        const light = score >= 68 ? 'green' : score >= 48 ? 'yellow' : 'red';
+
+        etf.price = cur;
+        etf.changePct = prev > 0 ? Math.round(((cur - prev) / prev) * 10000) / 100 : 0;
+        etf.high52w = Math.round(high52 * 100) / 100;
+        etf.low52w = Math.round(low52 * 100) / 100;
+        etf.mddFromHigh = mdd;
+        etf.rsi14 = rsi14;
+        etf.ma200 = ma200;
+        etf.ma200DiffPct = ma200Diff;
+        etf.score = score;
+        etf.light = light;
+        etf.actionBadge = light === 'green' ? '분할매수 유리' : light === 'yellow' ? '중립 · 분할' : '변동성 주의';
+
+        if (etf.ticker !== 'SGOV') {
+          const buyLow = Math.round(Math.max(low52, ma200 * 0.94) * 100) / 100;
+          let buyHigh = Math.round(Math.min(high52 * 0.92, ma200 * 1.01) * 100) / 100;
+          if (buyHigh <= buyLow) buyHigh = Math.round(buyLow * 1.04 * 100) / 100;
+          const fairHigh = Math.round(Math.max(buyHigh * 1.04, high52 * 0.97) * 100) / 100;
+          const zLight = cur <= buyHigh ? 'green' : cur <= fairHigh ? 'yellow' : 'red';
+          etf.priceZones = {
+            buyLow,
+            buyHigh,
+            fairHigh,
+            overPrice: fairHigh,
+            status: zLight === 'green' ? '적극 분할 구간' : zLight === 'yellow' ? '적정 적립 구간' : '추격 주의 구간',
+            light: zLight,
+            note:
+              zLight === 'green'
+                ? '200일선 부근 또는 고점 대비 충분히 눌린 저평가 매수 구간'
+                : zLight === 'yellow'
+                  ? '고점 대비 과열이 식은 구간 · 정기 분할 매수에 무리 없음'
+                  : '52주 고점 근접 · 일괄 매수보다 눌림목 대기 권장'
+          };
+        }
+
+        const step = Math.max(1, Math.floor(res.points.length / 40));
+        etf.history = res.points
+          .filter((_, idx2) => idx2 % step === 0 || idx2 === res.points.length - 1)
+          .map((p) => ({ date: p.date, close: p.close, ma200 }));
+      });
+    }
+
+    // 현재 누른 시각(KST)으로 헤더 날짜·시간 즉시 갱신
+    const nowKst = formatNowKst();
+    state.data.meta.updatedAt = nowKst.iso;
+    state.data.meta.updatedLabel = nowKst.label;
+    state.data.meta.sourceMode = fxUpdated || etfUpdatedCount > 0 ? 'live' : state.data.meta.sourceMode;
+
+    try {
+      localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify(state.data));
+    } catch {}
+
+    renderOverview();
+    renderEtfList();
+    renderFxTab();
+    renderMacroTab();
+    renderPortfolioTab();
+    if (state.selectedTicker) {
+      const found = state.data.etfs.find((e) => e.ticker === state.selectedTicker);
+      if (found) renderDrawerContent(found);
+    }
+
+    return { fxUpdated, etfUpdatedCount, label: nowKst.label };
+  }
+
   async function handleRefresh() {
     const btn = $('#refreshBtn');
     btn.classList.add('spinning');
     btn.disabled = true;
-    showToast('최신 시세와 뉴스를 확인하는 중입니다...');
+    showToast('지금 시각 기준으로 실시간 환율·시세를 불러오는 중...');
+
     try {
-      if (location.protocol === 'file:') throw new Error('file');
-      const res = await fetch('/api/refresh', { method: 'POST' });
-      if (!res.ok) throw new Error('noapi');
+      // 1) 로컬 서버(start.bat) 환경이면 백엔드 스크립트 실행 시도 (최대 10초)
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || /^192\.168\./.test(location.hostname)) {
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 10000);
+          const res = await fetch('/api/refresh', { method: 'POST', signal: ctrl.signal });
+          clearTimeout(t);
+          if (res.ok) {
+            await loadData(true);
+            localStorage.removeItem(LIVE_CACHE_KEY);
+            showToast(`실시간 최신화 완료! (${state.data?.meta?.updatedLabel || ''})`);
+            return;
+          }
+        } catch {}
+      }
+
+      // 2) GitHub Pages / 휴대폰 / 외부 접속: 서버 최신 JSON 먼저 확인 후 브라우저 직접 실시간 갱신
       await loadData(true);
-      showToast('최신 데이터로 업데이트했어요.');
-    } catch (e) {
-      if (e.message === 'file') showToast('start.bat으로 실행하면 실시간 최신화가 동작합니다.');
-      else {
-        await loadData(true);
-        showToast('저장된 최신 데이터를 다시 불러왔어요.');
+      const r = await runBrowserLiveRefresh();
+      if (r.etfUpdatedCount > 0) {
+        showToast(`지금 시각 실시간 반영 완료! (ETF ${r.etfUpdatedCount}종 · ${r.label})`);
+      } else if (r.fxUpdated) {
+        showToast(`실시간 환율 반영 완료! (${r.label})`);
+      } else {
+        showToast(`최신 데이터 확인 완료 (${r.label})`);
       }
     } finally {
       btn.classList.remove('spinning');
@@ -1971,18 +2235,37 @@
     }
   }
 
+  function updateQrDisplay(urlText) {
+    const box = $('#mobileQrBox');
+    if (!box || !window.QRCodeSvg) return;
+    const trimmed = String(urlText || '').trim();
+    if (!trimmed) {
+      box.innerHTML = '<div style="padding:30px; color:var(--ink-3); font-size:0.82rem;">주소를 입력해 주세요</div>';
+      return;
+    }
+    try {
+      box.innerHTML = window.QRCodeSvg.renderQrSvg(trimmed, 196);
+    } catch {
+      box.innerHTML = '<div style="padding:30px; color:var(--red); font-size:0.82rem;">주소가 너무 깁니다</div>';
+    }
+  }
+
   async function openGuideModal() {
     $('#guideModalBackdrop').classList.add('open');
     $('#guideModalBackdrop').setAttribute('aria-hidden', 'false');
+    let targetUrl = location.origin && location.protocol.startsWith('http') ? location.href.split('?')[0] : 'http://localhost:8080';
     try {
       if (location.protocol !== 'file:') {
         const res = await fetch('/api/info');
         if (res.ok) {
           const info = await res.json();
-          $('#mobileAccessUrl').textContent = info.mobileUrl;
+          targetUrl = info.mobileUrl;
         }
       }
     } catch {}
+    const input = $('#qrUrlInput');
+    if (input) input.value = targetUrl;
+    updateQrDisplay(targetUrl);
   }
 
   function closeGuideModal() {
@@ -2051,9 +2334,15 @@
       if (e.target === $('#guideModalBackdrop')) closeGuideModal();
     });
 
+    const qrInput = $('#qrUrlInput');
+    if (qrInput) {
+      qrInput.addEventListener('input', (e) => updateQrDisplay(e.target.value));
+    }
+
     $('#copyMobileUrlBtn').addEventListener('click', async () => {
       try {
-        await navigator.clipboard.writeText($('#mobileAccessUrl').textContent.trim());
+        const val = ($('#qrUrlInput')?.value || '').trim();
+        await navigator.clipboard.writeText(val);
         showToast('접속 주소를 복사했어요.');
       } catch {
         showToast('주소를 직접 선택해 복사해 주세요.');

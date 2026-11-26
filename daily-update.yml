@@ -1,0 +1,35 @@
+name: 미국 ETF·환율·거시경제 자동 최신화 (3시간 간격)
+
+on:
+  schedule:
+    # 매일 미국 정규장 마감 직후 (한국시간 오전 07:10)
+    - cron: '10 22 * * 1-5'
+    # 매일 3시간마다 환율·시세·국제정황 뉴스 요약본 자동 갱신 (한국시간 00, 03, 06, 09, 12, 15, 18, 21시)
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-market-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 실시간 시장·환율·거시·다매체 뉴스 요약본 수집
+        run: node scripts/update-data.mjs
+
+      - name: 최신 데이터 커밋 및 푸시
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "Gemini Econ Bot"
+          git add data/market-data.json data/market-data.js
+          git diff --staged --quiet || git commit -m "chore: 시세·환율·뉴스 요약본 자동 최신화 ($(date +'%Y-%m-%d %H:%M UTC'))"
+          git push

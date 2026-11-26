@@ -1,10 +1,11 @@
 // 네트워크 우선(최신 코드·데이터 즉시 반영) + 오프라인 시 캐시 폴백 서비스 워커
-const CACHE_NAME = 'us-etf-pulse-v14';
+const CACHE_NAME = 'us-etf-pulse-v19';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './macro.html',
   './styles.css',
+  './qr.js',
   './app.js',
   './macro.js',
   './manifest.json',

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>미국 경제지표 상세 분석 — ETF 신호등</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <button class="ghost-btn" id="backToMacroBtn" type="button" style="background:transparent; padding-left:2px; font-size:0.9rem; font-weight:700; color:var(--ink-1);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span id="backBtnLabel">핵심 경제지표</span>
+      </button>
+
+      <div class="topbar-actions">
+        <span class="source-tag" id="macroUpdatedLabel">불러오는 중</span>
+        <button class="ghost-btn icon-only" id="themeToggle" type="button" title="라이트/다크 모드" aria-label="테마 전환">
+          <svg id="themeSvg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-wrap" style="padding-bottom:48px;">
+    <!-- 6개 핵심 경제지표 빠른 전환 탭 -->
+    <div class="pill-scroll" id="macroSwitcher" role="tablist" aria-label="경제지표 선택"></div>
+
+    <!-- 선택된 지표 상세 콘텐츠 -->
+    <div id="macroDetailRoot" class="fx-stack"></div>
+
+    <footer class="footer-note">
+      본 경제지표 추이와 해석은 FRED(미 연준)·공개 시장 데이터를 기반으로 투자 판단을 돕기 위해 정리한 참고 정보입니다.
+    </footer>
+  </main>
+
+  <script src="./data/market-data.js"></script>
+  <script src="./macro.js"></script>
+</body>
+</html>

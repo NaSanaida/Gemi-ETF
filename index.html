@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="미국 ETF 16종 매수 신호등, 원/달러 환전 타이밍, 미국 경제지표 그래프 분석과 호재·악재 기사를 한눈에 확인하세요." />
+  <title>미국 ETF 신호등 — 매일 환전 · 매수 판단 브리핑</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- 상단 헤더 -->
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <button class="brand" id="brandHome" type="button">
+        <span class="brand-dot-group" aria-hidden="true">
+          <i class="bdot red"></i>
+          <i class="bdot yellow"></i>
+          <i class="bdot green"></i>
+        </span>
+        <span class="brand-text">
+          <strong>ETF 신호등</strong>
+          <small id="updatedLabel">불러오는 중</small>
+        </span>
+      </button>
+
+      <!-- 데스크톱 언더라인 탭 -->
+      <nav class="desktop-nav" aria-label="주요 메뉴">
+        <button class="nav-btn active" data-tab="dashboard" type="button">홈</button>
+        <button class="nav-btn" data-tab="fx" type="button">환전</button>
+        <button class="nav-btn" data-tab="macro" type="button">경제 · 뉴스</button>
+      </nav>
+
+      <div class="topbar-actions">
+        <button class="ghost-btn" id="mobileGuideBtn" type="button" title="휴대폰 연결 안내">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          <span class="btn-label">휴대폰</span>
+        </button>
+        <button class="ghost-btn accent" id="refreshBtn" type="button" title="최신 시세·뉴스 불러오기">
+          <svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+          <span class="btn-label">최신화</span>
+        </button>
+        <button class="ghost-btn icon-only" id="themeToggle" type="button" title="라이트/다크 모드" aria-label="테마 전환">
+          <svg id="themeSvg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-wrap">
+    <!-- ==================== TAB 1: 홈 ==================== -->
+    <section class="tab-panel active" id="tab-dashboard">
+      <!-- 오늘의 한눈에 결론 카드 -->
+      <div class="surface hero-card">
+        <div class="hero-eyebrow">
+          <span class="eyebrow-text">오늘의 투자 판단</span>
+          <span class="source-tag" id="sourceModeBadge">데일리 브리핑</span>
+        </div>
+        <h1 class="hero-headline" id="heroHeadline">데이터를 불러오는 중입니다.</h1>
+
+        <!-- 3단 핵심 판단 스트립 -->
+        <div class="logic-strip" id="overviewSignals"></div>
+
+        <!-- 오늘 바로 고르기 (목적별 3분류 퀵픽) -->
+        <div class="quick-pick-grid" id="quickPickGrid"></div>
+
+        <!-- 3줄 핵심 정리 -->
+        <ul class="summary-lines" id="dailyBriefingList"></ul>
+      </div>
+
+      <!-- 미국 ETF 16종 신호등 리스트 -->
+      <div class="surface list-card">
+        <div class="list-header">
+          <div>
+            <h2 class="section-title">미국 ETF 신호등 <span class="count-muted" id="etfCountLabel">16</span></h2>
+            <p class="section-sub">종목을 누르면 5가지 근거·관련 기사·매수 전략이 열립니다</p>
+          </div>
+          <select class="minimal-select" id="etfSortSelect" aria-label="정렬 기준">
+            <option value="score">매력도 높은순</option>
+            <option value="mdd">고점 대비 낙폭순</option>
+            <option value="news">호재 많은순</option>
+            <option value="yield">배당 높은순</option>
+            <option value="change">일간 등락순</option>
+          </select>
+        </div>
+
+        <div class="filter-controls">
+          <div class="search-field">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="etfSearchInput" placeholder="QQQM, SPLG, SGOV, SCHD, 배당, 반도체 검색" aria-label="ETF 검색" />
+          </div>
+
+          <div class="filter-rows">
+            <div class="pill-scroll" id="categoryFilters" role="group" aria-label="카테고리">
+              <button class="pill active" data-category="전체" type="button">전체</button>
+              <button class="pill" data-category="관심" type="button">★ 관심</button>
+              <button class="pill" data-category="대표지수" type="button">대표지수</button>
+              <button class="pill" data-category="배당·인컴" type="button">배당·인컴</button>
+              <button class="pill" data-category="기술·반도체" type="button">기술·반도체</button>
+              <button class="pill" data-category="채권·금" type="button">채권·금</button>
+            </div>
+            <div class="signal-seg" id="signalFilters" role="group" aria-label="신호 필터">
+              <button class="seg-btn active" data-light="all" type="button">전체</button>
+              <button class="seg-btn" data-light="green" type="button"><i class="sdot green"></i>유리</button>
+              <button class="seg-btn" data-light="yellow" type="button"><i class="sdot yellow"></i>중립</button>
+              <button class="seg-btn" data-light="red" type="button"><i class="sdot red"></i>주의</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="etf-list" id="etfGrid"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 환전 ==================== -->
+    <section class="tab-panel" id="tab-fx">
+      <div id="fxContainer"></div>
+    </section>
+
+    <!-- ==================== TAB 3: 경제 · 뉴스 ==================== -->
+    <section class="tab-panel" id="tab-macro">
+      <div class="surface section-card">
+        <div class="list-header">
+          <div>
+            <h2 class="section-title">미국 핵심 경제 지표</h2>
+            <p class="section-sub">각 지표를 누르면 추이 그래프와 상세 분석이 열립니다 (뒤로가기로 바로 복귀)</p>
+          </div>
+        </div>
+        <div class="macro-grid" id="macroIndicatorsGrid"></div>
+      </div>
+
+      <div class="surface section-card">
+        <div class="list-header">
+          <div>
+            <h2 class="section-title">국제 정황 주요 뉴스</h2>
+            <p class="section-sub">영향받는 ETF를 누르면 바로 상세 분석으로 이동합니다</p>
+          </div>
+          <div class="signal-seg" id="macroNewsFilter">
+            <button class="seg-btn active" data-sent="all" type="button">전체</button>
+            <button class="seg-btn" data-sent="positive" type="button"><i class="sdot green"></i>호재</button>
+            <button class="seg-btn" data-sent="negative" type="button"><i class="sdot red"></i>악재</button>
+            <button class="seg-btn" data-sent="neutral" type="button"><i class="sdot yellow"></i>중립</button>
+          </div>
+        </div>
+        <div class="news-feed" id="globalNewsList"></div>
+      </div>
+
+      <div class="surface section-card">
+        <div class="list-header">
+          <div>
+            <h2 class="section-title">다가오는 주요 일정</h2>
+            <p class="section-sub">발표일 전후로는 변동성이 커지니 분할 매수가 안전해요</p>
+          </div>
+        </div>
+        <div class="cal-list" id="macroCalendarList"></div>
+      </div>
+    </section>
+
+    <footer class="footer-note">
+      본 화면의 신호등·점수·기사 분류는 공개된 시장 데이터 기반의 참고 정보이며, 투자 권유가 아닙니다. 최종 투자 판단과 책임은 본인에게 있습니다.
+    </footer>
+  </main>
+
+  <!-- 모바일 하단 탭바 -->
+  <nav class="mobile-bottom-nav" aria-label="모바일 하단 메뉴">
+    <button class="m-tab active" data-tab="dashboard" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>
+      <span>홈</span>
+    </button>
+    <button class="m-tab" data-tab="fx" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>환전</span>
+    </button>
+    <button class="m-tab" data-tab="macro" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <span>경제·뉴스</span>
+    </button>
+    <button class="m-tab" id="mobileGuideTab" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span>연결</span>
+    </button>
+  </nav>
+
+  <!-- ETF 상세 시트 -->
+  <div class="modal-backdrop" id="etfModalBackdrop" aria-hidden="true">
+    <aside class="etf-sheet" id="etfDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTickerTitle">
+      <div class="sheet-header">
+        <div class="sheet-title-wrap">
+          <strong class="sheet-ticker" id="drawerTickerTitle">VOO</strong>
+          <span class="sheet-cat" id="drawerCategory">대표지수</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="sheet-close" id="drawerFavBtn" type="button" aria-label="관심 종목 추가" title="관심 종목">☆</button>
+          <button class="sheet-close" id="closeDrawerBtn" type="button" aria-label="닫기">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="sheet-body" id="drawerBody"></div>
+    </aside>
+  </div>
+
+  <!-- 휴대폰 연결 안내 모달 -->
+  <div class="modal-backdrop center" id="guideModalBackdrop" aria-hidden="true">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="guideModalTitle">
+      <div class="sheet-header">
+        <strong class="sheet-ticker" id="guideModalTitle">휴대폰 연결 · 매일 자동화</strong>
+        <button class="sheet-close" id="closeGuideBtn" type="button" aria-label="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div class="guide-step">
+          <span class="step-num">1</span>
+          <div>
+            <h3>같은 Wi-Fi 휴대폰에서 바로 보기</h3>
+            <p>PC에서 <code>start.bat</code>을 켜고 휴대폰 브라우저에 아래 주소를 입력하세요.</p>
+            <div class="copy-row">
+              <code id="mobileAccessUrl">http://localhost:8080</code>
+              <button class="primary-sm-btn" id="copyMobileUrlBtn" type="button">복사</button>
+            </div>
+            <small>브라우저 메뉴에서 <strong>홈 화면에 추가</strong>하면 앱처럼 열립니다.</small>
+          </div>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">2</span>
+          <div>
+            <h3>매일 오전 자동 최신화</h3>
+            <p><code>scripts/register-daily-task.ps1</code> 실행 시 매일 오전 7시 30분 자동 갱신됩니다. GitHub Pages로 올리면 PC가 꺼져 있어도 외부에서 볼 수 있어요.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./data/market-data.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

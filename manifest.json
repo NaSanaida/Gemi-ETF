@@ -1,10 +1,10 @@
 {
   "name": "제미나이 경제",
   "short_name": "제미나이 경제",
-  "description": "미국 ETF 매수 신호등, 환전 타이밍, 거시경제와 호재·악재 기사를 한눈에 확인하세요.",
+  "description": "미국 ETF · 미국주식 매수 신호등, 환전 타이밍, 거시경제와 호재·악재 기사를 한눈에 확인하세요.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f2f4f6",
+  "background_color": "#0B1324",
   "theme_color": "#ffffff",
   "orientation": "portrait-primary",
   "icons": [
@@ -12,7 +12,13 @@
       "src": "./icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }

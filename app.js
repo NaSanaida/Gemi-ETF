@@ -27,6 +27,7 @@
     authorFilter: '전체',
     authorNick: window.SimpleShare ? window.SimpleShare.loadNickname() : '나',
     pendingShareData: null,
+    marketType: 'etf',
     category: '전체',
     lightFilter: 'all',
     searchQuery: '',
@@ -50,6 +51,21 @@
   const fmtUsd = (n) => `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtKrw = (n) => `${Math.round(Number(n)).toLocaleString('ko-KR')}원`;
   const fmtPct = (n) => `${Number(n) > 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
+  const parseKrwInput = (val) => Number(String(val ?? '').replace(/[^0-9]/g, '')) || 0;
+  const fmtComma = (n) => Math.max(0, Math.round(Number(n) || 0)).toLocaleString('ko-KR');
+  const fmtKrwKorean = (n) => {
+    const v = Math.max(0, Math.round(Number(n) || 0));
+    if (!v) return '0원';
+    const eok = Math.floor(v / 100000000);
+    const man = Math.floor((v % 100000000) / 10000);
+    const rest = v % 10000;
+    const parts = [];
+    if (eok) parts.push(`${eok.toLocaleString('ko-KR')}억`);
+    if (man) parts.push(`${man.toLocaleString('ko-KR')}만`);
+    if (rest) parts.push(rest.toLocaleString('ko-KR'));
+    return `${parts.join(' ')}원`;
+  };
+  const getAllAssets = () => [...(state.data?.etfs || []), ...(state.data?.stocks || [])];
 
   function esc(str) {
     return String(str ?? '')
@@ -60,9 +76,9 @@
   }
 
   function categoryClass(cat) {
-    if (cat === '대표지수') return 'cat-index';
-    if (cat === '배당·인컴') return 'cat-div';
-    if (cat === '기술·반도체') return 'cat-tech';
+    if (cat === '대표지수' || cat === '빅테크·AI') return 'cat-index';
+    if (cat === '배당·인컴' || cat === '배당·가치') return 'cat-div';
+    if (cat === '기술·반도체' || cat === '반도체·SW') return 'cat-tech';
     if (cat === '레버리지') return 'cat-lev';
     return 'cat-safe';
   }
@@ -581,7 +597,10 @@
 
           <div class="combo-budget-row">
             <label for="comboBudgetInput">내 투자 예산 (원)</label>
-            <input type="number" id="comboBudgetInput" step="any" min="100000" value="${budget}" />
+            <div class="krw-input-wrap" style="max-width:210px; width:100%;">
+              <input type="text" inputmode="numeric" id="comboBudgetInput" value="${fmtComma(budget)}" />
+              <span class="krw-unit-suffix">원</span>
+            </div>
           </div>
 
           <div class="combo-alloc-list num" id="comboAllocList"></div>
@@ -623,7 +642,9 @@
     renderAllocRows(budget);
 
     $('#comboBudgetInput', containerEl).addEventListener('input', (ev) => {
-      state.comboBudgetKrw = Number(ev.target.value) || 0;
+      const num = parseKrwInput(ev.target.value);
+      ev.target.value = num > 0 ? fmtComma(num) : '';
+      state.comboBudgetKrw = num;
       renderAllocRows(state.comboBudgetKrw);
     });
 
@@ -635,10 +656,72 @@
     });
   }
 
-  // ==================== 2. 16종 ETF 리스트 (관심 ★ + 신호등) ====================
+  // ==================== 2. 미국 ETF (24종) & 미국주식 (20종) 신호등 별도 탭 리스트 ====================
+  const MARKET_CATEGORIES = {
+    etf: [
+      { key: '전체', label: '전체' },
+      { key: '관심', label: '★ 관심' },
+      { key: '대표지수', label: '대표지수' },
+      { key: '배당·인컴', label: '배당·인컴' },
+      { key: '기술·반도체', label: '기술·반도체' },
+      { key: '채권·금', label: '채권·금·원유' },
+      { key: '레버리지', label: '레버리지 3x' }
+    ],
+    stock: [
+      { key: '전체', label: '전체' },
+      { key: '관심', label: '★ 관심' },
+      { key: '빅테크·AI', label: '빅테크·AI' },
+      { key: '반도체·SW', label: '반도체·SW' },
+      { key: '배당·가치', label: '배당·가치' },
+      { key: '헬스·에너지·방산', label: '헬스·에너지·방산' }
+    ]
+  };
+
+  function renderCategoryPills() {
+    const wrap = $('#categoryFilters');
+    if (!wrap) return;
+    const isStock = state.marketType === 'stock';
+    const cats = MARKET_CATEGORIES[isStock ? 'stock' : 'etf'];
+    if (!cats.some((c) => c.key === state.category)) state.category = '전체';
+
+    wrap.innerHTML = cats
+      .map((c) => `<button class="pill ${state.category === c.key ? 'active' : ''}" data-category="${c.key}" type="button">${c.label}</button>`)
+      .join('');
+
+    $$('.pill', wrap).forEach((p) => {
+      p.addEventListener('click', () => {
+        state.category = p.dataset.category;
+        $$('.pill', wrap).forEach((x) => x.classList.toggle('active', x === p));
+        renderEtfList();
+      });
+    });
+
+    const titleEl = $('#marketListTitle');
+    const subEl = $('#marketListSub');
+    const searchEl = $('#etfSearchInput');
+    if (titleEl) titleEl.textContent = isStock ? '미국주식 신호등' : '미국 ETF 신호등';
+    if (subEl) {
+      subEl.textContent = isStock
+        ? '서학개미 인기 개별주 20종 · 종목을 누르면 매력 가격구간·PER·뉴스 요약이 열립니다'
+        : '종목을 누르면 매력 가격구간·6가지 근거·관련 뉴스 요약이 열립니다';
+    }
+    if (searchEl) {
+      searchEl.placeholder = isStock
+        ? 'NVDA, 엔비디아, AAPL, MSFT, TSLA, 팔란티어, 리얼티인컴 검색'
+        : 'SOXL, NRGU, VT, QQQM, IEF, SGOV, 유가, 배당 검색';
+    }
+
+    $$('#marketAssetTabs .market-tab').forEach((btn) => {
+      const active = btn.dataset.market === state.marketType;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
   function getFilteredEtfs() {
     const q = state.searchQuery.trim().toLowerCase();
-    let list = [...state.data.etfs];
+    const source = state.marketType === 'stock' ? state.data.stocks || [] : state.data.etfs || [];
+    let list = [...source];
     if (state.category === '관심') list = list.filter((e) => state.favs.includes(e.ticker));
     else if (state.category !== '전체') list = list.filter((e) => e.category === state.category);
 
@@ -653,8 +736,8 @@
       );
     }
 
-    const posCnt = (e) => e.news.filter((n) => n.sentiment === 'positive').length;
-    const yld = (e) => parseFloat(String(e.dividendYield).replace('%', '')) || 0;
+    const posCnt = (e) => (e.news || []).filter((n) => n.sentiment === 'positive').length;
+    const yld = (e) => parseFloat(String(e.dividendYield || '0').replace('%', '')) || 0;
 
     list.sort((a, b) => {
       if (state.sortBy === 'flowBuy') return (b.flowScore || 0) - (a.flowScore || 0);
@@ -671,11 +754,18 @@
   function renderEtfList() {
     const listEl = $('#etfGrid');
     const fxRate = state.data.fx.usdKrw;
+    const tabEtfCount = $('#tabEtfCount');
+    const tabStockCount = $('#tabStockCount');
+    if (tabEtfCount) tabEtfCount.textContent = (state.data.etfs || []).length;
+    if (tabStockCount) tabStockCount.textContent = (state.data.stocks || []).length;
+
+    renderCategoryPills();
     const list = getFilteredEtfs();
     $('#etfCountLabel').textContent = list.length;
 
     if (!list.length) {
-      listEl.innerHTML = `<div style="padding:36px 0; text-align:center; color:var(--ink-3); font-size:0.9rem;">${state.category === '관심' ? '관심 종목(☆)을 눌러 자주 보는 ETF를 담아보세요.' : '조건에 맞는 ETF가 없습니다.'}</div>`;
+      const label = state.marketType === 'stock' ? '미국주식' : 'ETF';
+      listEl.innerHTML = `<div style="padding:36px 0; text-align:center; color:var(--ink-3); font-size:0.9rem;">${state.category === '관심' ? `관심 종목(☆)을 눌러 자주 보는 ${label}을 담아보세요.` : `조건에 맞는 ${label}이 없습니다.`}</div>`;
       return;
     }
 
@@ -692,7 +782,7 @@
         <div class="etf-row" data-ticker="${e.ticker}" role="button" tabindex="0">
           <div class="etf-row-left">
             <button class="star-btn ${isFav ? 'active' : ''}" type="button" data-fav="${e.ticker}" aria-label="${e.ticker} 관심 종목">${isFav ? '★' : '☆'}</button>
-            <div class="ticker-avatar ${categoryClass(e.category)}">${e.ticker}</div>
+            <div class="ticker-avatar ${categoryClass(e.category)}${e.ticker.length >= 5 ? ' long-ticker' : ''}">${e.ticker}</div>
             <div class="etf-name-col">
               <div class="etf-name-top">
                 <strong>${esc(e.krName)}</strong>
@@ -743,16 +833,16 @@
     });
   }
 
-  // ==================== 3. ETF 상세 시트 (꼼꼼·간결 5가지 근거 + 전략) ====================
+  // ==================== 3. ETF · 미국주식 상세 시트 (6가지 근거 + 매력 가격구간 + 전략) ====================
   function openEtfDrawer(ticker) {
-    const etf = state.data.etfs.find((e) => e.ticker === ticker);
+    const etf = getAllAssets().find((e) => e.ticker === ticker);
     if (!etf) return;
     state.selectedTicker = ticker;
     state.drawerNewsFilter = 'all';
     state.drawerChartRange = '1Y';
 
     $('#drawerTickerTitle').textContent = `${etf.ticker} · ${etf.krName}`;
-    $('#drawerCategory').textContent = etf.category;
+    $('#drawerCategory').textContent = etf.assetType === 'stock' ? `미국주식 · ${etf.category}` : etf.category;
     updateDrawerFavBtn();
 
     renderDrawerContent(etf);
@@ -941,15 +1031,15 @@
         <div class="kpi-trio num">
           <div class="kpi-item">
             <span>배당수익률</span>
-            <strong>${etf.dividendYield}</strong>
+            <strong>${esc(etf.dividendYield || '0.00%')}</strong>
           </div>
           <div class="kpi-item">
-            <span>연 운용보수</span>
-            <strong>${etf.expenseRatio}</strong>
+            <span>${etf.assetType === 'stock' ? '시가총액' : '연 운용보수'}</span>
+            <strong>${esc(etf.assetType === 'stock' ? (etf.marketCap || '-') : (etf.expenseRatio || '-'))}</strong>
           </div>
           <div class="kpi-item">
-            <span>예상 PER</span>
-            <strong>${etf.forwardPE}</strong>
+            <span>${etf.assetType === 'stock' ? 'PER' : '예상 PER'}</span>
+            <strong>${esc(etf.per || etf.forwardPE || '-')}</strong>
           </div>
         </div>
       </div>
@@ -968,11 +1058,11 @@
         <div class="pros-cons">
           <div class="pc-box">
             <h4><i class="sdot green"></i> 긍정 요인 (호재)</h4>
-            <ul>${etf.bullFactors.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+            <ul>${(Array.isArray(etf.bullFactors) && etf.bullFactors.length ? etf.bullFactors : [etf.actionSummary, etf.compareTip].filter(Boolean)).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
           </div>
           <div class="pc-box">
             <h4><i class="sdot red"></i> 주의 요인 (악재)</h4>
-            <ul>${etf.bearFactors.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+            <ul>${(Array.isArray(etf.bearFactors) && etf.bearFactors.length ? etf.bearFactors : [`고점 대비 ${etf.mddFromHigh}% 변동 · RSI ${etf.rsi14} 구간 점검 필요`, etf.assetType === 'stock' ? '개별 기업 실적 발표 및 업황 변화에 따른 변동성 유의' : '환율 및 거시 지표 변동에 따라 분할 대응 권장']).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
           </div>
         </div>
 
@@ -990,7 +1080,7 @@
             <div class="sim-inputs">
               <div class="sim-field">
                 <label for="simKrwInput">투자금 (원)</label>
-                <input type="number" id="simKrwInput" value="3000000" step="100000" min="100000" />
+                <input type="text" inputmode="numeric" id="simKrwInput" value="3,000,000" />
               </div>
               <div class="sim-field">
                 <label for="simPriceChgInput">주가 변동 (%)</label>
@@ -1089,7 +1179,11 @@
     });
 
     const calcSim = () => {
-      const krw = Math.max(0, Number($('#simKrwInput', body).value) || 0);
+      const simInput = $('#simKrwInput', body);
+      const krw = parseKrwInput(simInput.value);
+      if (document.activeElement === simInput) {
+        simInput.value = krw > 0 ? fmtComma(krw) : '';
+      }
       const chg = Number($('#simPriceChgInput', body).value) || 0;
       const tfx = Math.max(500, Number($('#simTargetFxInput', body).value) || fxRate);
       const shares = krw / fxRate / etf.price;
@@ -1195,7 +1289,20 @@
           </div>
           <div class="sim-field" style="margin-bottom:12px;">
             <label for="quickFxKrw">바꿀 금액 (원)</label>
-            <input type="number" id="quickFxKrw" value="1000000" step="100000" min="10000" />
+            <div class="krw-input-wrap">
+              <input type="text" inputmode="numeric" id="quickFxKrw" class="num" value="1,000,000" placeholder="예: 1,000,000" />
+              <span class="krw-unit-suffix">원</span>
+            </div>
+            <div class="krw-quick-row">
+              <span class="krw-kor-hint" id="quickFxKorHint">100만원</span>
+              <div class="krw-quick-btns">
+                <button class="krw-qbtn" type="button" data-add-krw="100000">+10만</button>
+                <button class="krw-qbtn" type="button" data-add-krw="500000">+50만</button>
+                <button class="krw-qbtn" type="button" data-add-krw="1000000">+100만</button>
+                <button class="krw-qbtn" type="button" data-add-krw="5000000">+500만</button>
+                <button class="krw-qbtn" type="button" data-add-krw="0">초기화</button>
+              </div>
+            </div>
           </div>
           <div class="sim-summary num" id="quickFxOut"></div>
         </div>
@@ -1209,25 +1316,41 @@
       color: '#00c471'
     });
 
+    const krwInput = $('#quickFxKrw', wrap);
+    const korHint = $('#quickFxKorHint', wrap);
+
     const calcQuick = () => {
-      const krw = Math.max(0, Number($('#quickFxKrw', wrap).value) || 0);
+      const krw = parseKrwInput(krwInput.value);
+      krwInput.value = krw > 0 ? fmtComma(krw) : '';
+      if (korHint) korHint.textContent = fmtKrwKorean(krw);
       const usd = krw / fx.usdKrw;
-      const splg = state.data.etfs.find((e) => e.ticker === 'SPLG');
-      const qqqm = state.data.etfs.find((e) => e.ticker === 'QQQM');
-      const schd = state.data.etfs.find((e) => e.ticker === 'SCHD');
+      const all = getAllAssets();
+      const splg = all.find((e) => e.ticker === 'SPLG');
+      const qqqm = all.find((e) => e.ticker === 'QQQM');
+      const nvda = all.find((e) => e.ticker === 'NVDA');
+      const aapl = all.find((e) => e.ticker === 'AAPL');
       $('#quickFxOut', wrap).innerHTML = `
         <div>
           <div style="font-size:0.75rem; color:var(--ink-3);">예상 수령 달러</div>
           <div style="font-size:1.25rem; font-weight:800; color:var(--blue);">${fmtUsd(usd)}</div>
         </div>
-        <div style="text-align:right; font-size:0.8rem; color:var(--ink-2);">
-          SPLG 약 ${(usd / (splg ? splg.price : 85)).toFixed(1)}주 · QQQM 약 ${(usd / (qqqm ? qqqm.price : 262)).toFixed(2)}주<br/>
-          SCHD 약 ${(usd / (schd ? schd.price : 35)).toFixed(1)}주 매수 가능
+        <div style="text-align:right; font-size:0.8rem; color:var(--ink-2); line-height:1.5;">
+          ETF: SPLG 약 ${(usd / (splg ? splg.price : 85)).toFixed(1)}주 · QQQM 약 ${(usd / (qqqm ? qqqm.price : 262)).toFixed(2)}주<br/>
+          주식: NVDA 약 ${(usd / (nvda ? nvda.price : 136)).toFixed(1)}주 · AAPL 약 ${(usd / (aapl ? aapl.price : 228)).toFixed(1)}주
         </div>
       `;
     };
     calcQuick();
-    $('#quickFxKrw', wrap).addEventListener('input', calcQuick);
+    krwInput.addEventListener('input', calcQuick);
+
+    $$('[data-add-krw]', wrap).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const delta = Number(btn.dataset.addKrw);
+        const next = delta === 0 ? 0 : parseKrwInput(krwInput.value) + delta;
+        krwInput.value = next > 0 ? fmtComma(next) : '';
+        calcQuick();
+      });
+    });
   }
 
   // ==================== 5. 거시경제 (클릭 시 같은 탭에서 상세 그래프 · 뒤로가기 시 바로 복귀!) ====================
@@ -1644,7 +1767,7 @@
 
   function computePortfolioStats(buyList = null, fxList = null) {
     const curFx = state.data.fx.usdKrw;
-    const etfMap = new Map(state.data.etfs.map((e) => [e.ticker, e]));
+    const etfMap = new Map(getAllAssets().map((e) => [e.ticker, e]));
     const active = buyList && fxList ? { buyLogs: buyList, fxLogs: fxList } : getActiveFilteredLogs();
 
     const byTicker = {};
@@ -2045,16 +2168,17 @@
       return;
     }
 
-    // ==================== Sub-tab 2: ETF 매수 일지 ====================
+    // ==================== Sub-tab 2: ETF · 미국주식 매수 일지 ====================
     if (state.portfolioSub === 'etflog') {
+      const allAssets = getAllAssets();
       const defaultTicker = preselectTicker || 'SPLG';
-      const defEtf = state.data.etfs.find((e) => e.ticker === defaultTicker) || state.data.etfs[0];
+      const defEtf = allAssets.find((e) => e.ticker === defaultTicker) || allAssets[0];
 
       root.innerHTML = `
         <div class="surface">
           <div class="list-header" style="margin-bottom:14px;">
             <div>
-              <h2 class="section-title">ETF 매수 기록 추가</h2>
+              <h2 class="section-title">ETF · 미국주식 매수 기록 추가</h2>
               <p class="section-sub">종목을 고르면 현재가와 환율이 자동으로 채워져 간편하게 기록할 수 있어요</p>
             </div>
           </div>
@@ -2067,7 +2191,12 @@
               <div class="sim-field">
                 <label for="bfTicker">종목 선택</label>
                 <select id="bfTicker" class="minimal-select" style="width:100%; height:38px;">
-                  ${state.data.etfs.map((e) => `<option value="${e.ticker}" ${e.ticker === defEtf.ticker ? 'selected' : ''}>${e.ticker} · ${esc(e.krName)}</option>`).join('')}
+                  <optgroup label="미국 ETF (${(state.data.etfs || []).length})">
+                    ${(state.data.etfs || []).map((e) => `<option value="${e.ticker}" ${e.ticker === defEtf.ticker ? 'selected' : ''}>${e.ticker} · ${esc(e.krName)}</option>`).join('')}
+                  </optgroup>
+                  <optgroup label="미국 개별주식 (${(state.data.stocks || []).length})">
+                    ${(state.data.stocks || []).map((e) => `<option value="${e.ticker}" ${e.ticker === defEtf.ticker ? 'selected' : ''}>${e.ticker} · ${esc(e.krName)}</option>`).join('')}
+                  </optgroup>
                 </select>
               </div>
               <div class="sim-field">
@@ -2104,7 +2233,7 @@
               ? [...activeLogs.buyLogs]
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((log) => {
-                    const etf = state.data.etfs.find((e) => e.ticker === log.ticker);
+                    const etf = getAllAssets().find((e) => e.ticker === log.ticker);
                     const costKrw = log.price * log.qty * log.fxRate;
                     const curKrw = (etf ? etf.price : log.price) * log.qty * curFx;
                     const ret = ((curKrw - costKrw) / Math.max(1, costKrw)) * 100;
@@ -2142,7 +2271,7 @@
       updateBuyPreview();
 
       $('#bfTicker', root).addEventListener('change', (e) => {
-        const found = state.data.etfs.find((x) => x.ticker === e.target.value);
+        const found = getAllAssets().find((x) => x.ticker === e.target.value);
         if (found) $('#bfPrice', root).value = found.price;
         updateBuyPreview();
       });
@@ -2395,6 +2524,7 @@
           cached &&
           cached.meta?.updatedAt &&
           cached.etfs?.length === state.data.etfs?.length &&
+          (cached.stocks?.length || 0) === (state.data.stocks?.length || 0) &&
           cached.macro?.globalStory &&
           new Date(cached.meta.updatedAt) > new Date(state.data.meta.updatedAt)
         ) {
@@ -2434,7 +2564,7 @@
     if (etfParam && !state.selectedTicker) {
       openEtfDrawer(etfParam.toUpperCase());
     } else if (state.selectedTicker) {
-      const found = state.data.etfs.find((e) => e.ticker === state.selectedTicker);
+      const found = getAllAssets().find((e) => e.ticker === state.selectedTicker);
       if (found) renderDrawerContent(found);
     }
   }
@@ -2587,7 +2717,7 @@
     renderMacroTab();
     renderPortfolioTab();
     if (state.selectedTicker) {
-      const found = state.data.etfs.find((e) => e.ticker === state.selectedTicker);
+      const found = getAllAssets().find((e) => e.ticker === state.selectedTicker);
       if (found) renderDrawerContent(found);
     }
   }
@@ -2633,12 +2763,13 @@
     renderAllTabs();
 
     // 2단계 (빠른 프로브 1회 후 전체 병렬 조회 — 최대 5초 컷, 무한대기 방지!)
-    const firstEtf = state.data.etfs[0];
+    const allLiveTargets = getAllAssets();
+    const firstEtf = allLiveTargets[0];
     const probe = firstEtf ? await fetchYahooLiveBrowser(firstEtf.ticker, 3000) : null;
     if (probe) {
       applyEtfLiveResult(firstEtf, probe);
       etfUpdatedCount++;
-      const restEtfs = state.data.etfs.slice(1);
+      const restEtfs = allLiveTargets.slice(1);
       const [vixRes, ...restRes] = await Promise.all([
         fetchYahooLiveBrowser('^VIX', 4000),
         ...restEtfs.map((e) => fetchYahooLiveBrowser(e.ticker, 4000))
@@ -2858,6 +2989,19 @@
       }
     });
 
+    $$('#marketAssetTabs .market-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nextType = btn.dataset.market === 'stock' ? 'stock' : 'etf';
+        if (state.marketType === nextType) return;
+        state.marketType = nextType;
+        state.category = '전체';
+        state.searchQuery = '';
+        const searchEl = $('#etfSearchInput');
+        if (searchEl) searchEl.value = '';
+        renderEtfList();
+      });
+    });
+
     $('#etfSearchInput').addEventListener('input', (e) => {
       state.searchQuery = e.target.value;
       renderEtfList();
@@ -2866,14 +3010,6 @@
     $('#etfSortSelect').addEventListener('change', (e) => {
       state.sortBy = e.target.value;
       renderEtfList();
-    });
-
-    $$('#categoryFilters .pill').forEach((p) => {
-      p.addEventListener('click', () => {
-        state.category = p.dataset.category;
-        $$('#categoryFilters .pill').forEach((x) => x.classList.toggle('active', x === p));
-        renderEtfList();
-      });
     });
 
     $$('#signalFilters .seg-btn').forEach((b) => {

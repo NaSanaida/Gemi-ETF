@@ -2817,6 +2817,116 @@ a {
   font-weight: 800;
 }
 
+/* ==================== 홈 ETF / 미국주식 신호등 별도 전환 탭 & 빠른 금액 버튼 ==================== */
+.ticker-avatar.long-ticker {
+  font-size: 0.6rem !important;
+  letter-spacing: -0.04em;
+}
+
+.market-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 14px;
+  background: var(--surface-sub);
+  margin-bottom: 16px;
+}
+
+.market-tab {
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.market-tab .mt-count {
+  font-style: normal;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(107, 118, 132, 0.14);
+  color: var(--ink-2);
+}
+
+.market-tab.active {
+  background: var(--surface);
+  color: var(--ink-1);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.market-tab.active .mt-count {
+  background: var(--blue-bg);
+  color: var(--blue);
+}
+
+.krw-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.krw-input-wrap input {
+  padding-right: 34px !important;
+}
+
+.krw-unit-suffix {
+  position: absolute;
+  right: 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+.krw-quick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.krw-kor-hint {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.krw-quick-btns {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.krw-qbtn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-2);
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.krw-qbtn:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-bg);
+}
+
 @media (max-width: 720px) {
   .member-grid {
     grid-template-columns: 1fr;

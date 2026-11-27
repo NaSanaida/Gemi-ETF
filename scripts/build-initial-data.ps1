@@ -90,12 +90,62 @@ $data = [ordered]@{
         dataSources  = @('Yahoo Finance', 'FRED', 'Bloomberg', 'Google News')
     }
     overview = [ordered]@{
-        headline = '환율은 유리, 증시는 불안. 우량·배당·파킹 ETF로 나눠 담으세요.'
-        quickPicks = @(
-            [ordered]@{ title = '적립 매수 유리'; light = 'green'; note = '저보수·방어력'; tickers = @('SPLG', 'VOO', 'SCHD') },
-            [ordered]@{ title = '달러 이자 대기'; light = 'green'; note = '연 4%대 안정'; tickers = @('SGOV', 'TLT', 'JEPI') },
-            [ordered]@{ title = '변동성 주의'; light = 'red'; note = '바닥 확인 후'; tickers = @('SOXX', 'SMH', 'TQQQ') }
+        headline = '분할 매수 · 방어 우선'
+        subHeadline = '환율은 싼 편, 증시는 불안. 우량·배당·단기채부터 나눠 담으세요.'
+        todayActions = @(
+            [ordered]@{ tag = '환전'; light = 'green'; text = '1,343원 · 분할 환전 유리'; tickers = @('SGOV') },
+            [ordered]@{ tag = '매수'; light = 'green'; text = '우량·배당 중심 나눠 담기'; tickers = @('SPLG', 'SCHD', 'VT') },
+            [ordered]@{ tag = '주의'; light = 'red';   text = '3배 레버리지 추격 금지'; tickers = @('SOXL', 'TQQQ', 'NRGU') }
         )
+        quickPicks = @(
+            [ordered]@{ title = '적립 매수 유리'; light = 'green'; note = '저보수·방어력'; tickers = @('SPLG', 'VT', 'SCHD') },
+            [ordered]@{ title = '국채·에너지 헤지'; light = 'green'; note = '이자·유가 방어'; tickers = @('SGOV', 'IEF', 'XLE') },
+            [ordered]@{ title = '3배 레버리지 주의'; light = 'red'; note = 'VIX 28 고변동'; tickers = @('SOXL', 'TQQQ', 'NRGU') }
+        )
+        recommendations = [ordered]@{
+            topPicks = @(
+                [ordered]@{ ticker = 'SCHD'; role = '하락장 방어 · 배당 1위'; reason = '기술주 조정 속 가치주 순환매 수혜 · PER 15배 저평가' },
+                [ordered]@{ ticker = 'SGOV'; role = '달러 현금 파킹 1위'; reason = '원금 변동 거의 없이 연 4.0%대 월이자 · 급락 시 저가 매수 탄약' },
+                [ordered]@{ ticker = 'SPLG'; role = '소액 적립 대표지수 1위'; reason = '연 0.02% 최저 보수 · 미국 GDP 4.3% 성장 + 고점 대비 -5% 조정' }
+            )
+            portfolios = @(
+                [ordered]@{
+                    id = 'safe'; name = '안정 · 적립형'; tag = '초보·방어 추천'; light = 'green'
+                    summary = '하락장 흔들림을 최소화하며 배당·이자로 꾸준히 모으는 조합'
+                    expectedYield = '연 2.8%'; riskText = '낮음 (2/5)'
+                    allocations = @(
+                        [ordered]@{ ticker = 'SPLG'; pct = 35; role = '미국 대표지수' },
+                        [ordered]@{ ticker = 'SCHD'; pct = 30; role = '우량 배당성장' },
+                        [ordered]@{ ticker = 'SGOV'; pct = 20; role = '달러 이자 파킹' },
+                        [ordered]@{ ticker = 'IEF';  pct = 15; role = '중기국채 방어' }
+                    )
+                },
+                [ordered]@{
+                    id = 'balanced'; name = '균형 · 글로벌 배당성장형'; tag = '직장인 표준'; light = 'green'
+                    summary = '미국·전세계 성장 + 배당 + 채권·에너지로 모든 변수(전쟁·금리)에 대응'
+                    expectedYield = '연 2.4%'; riskText = '보통 (3/5)'
+                    allocations = @(
+                        [ordered]@{ ticker = 'VT';   pct = 30; role = '전세계 초분산' },
+                        [ordered]@{ ticker = 'QQQM'; pct = 25; role = '나스닥 성장' },
+                        [ordered]@{ ticker = 'SCHD'; pct = 20; role = '배당 방어' },
+                        [ordered]@{ ticker = 'TLT';  pct = 15; role = '장기국채 헤지' },
+                        [ordered]@{ ticker = 'XLE';  pct = 10; role = '유가·전쟁 헤지' }
+                    )
+                },
+                [ordered]@{
+                    id = 'aggressive'; name = '공격 · 조정장 역발상형'; tag = '변동성 감내'; light = 'yellow'
+                    summary = '기술·반도체 중심이되, 현금(SGOV) 15%를 쥐고 레버리지는 10% 이내로 제한'
+                    expectedYield = '연 1.2%'; riskText = '높음 (4/5)'
+                    allocations = @(
+                        [ordered]@{ ticker = 'QQQM'; pct = 40; role = '나스닥 핵심' },
+                        [ordered]@{ ticker = 'SOXX'; pct = 20; role = '미국 반도체' },
+                        [ordered]@{ ticker = 'VOO';  pct = 15; role = 'S&P500 중심' },
+                        [ordered]@{ ticker = 'SGOV'; pct = 15; role = '급락 매수 현금' },
+                        [ordered]@{ ticker = 'SOXL'; pct = 10; role = '소액 3배 반등용' }
+                    )
+                }
+            )
+        }
         fxSignal = [ordered]@{
             light   = 'green'
             label   = '환전 유리'
@@ -266,11 +316,101 @@ $data = [ordered]@{
                 beneficiaries = [ordered]@{ tickers = @('JEPI', 'JEPQ', 'SGOV', 'TLT'); reason = '커버드콜 옵션 수익 증가 · 안전자산 선호' }
                 pressured = [ordered]@{ tickers = @('TQQQ', 'SOXX', 'SMH'); reason = '고변동 구간에서 레버리지 음의 복리 타격' }
                 actionChecklist = @(
-                    'VIX 25 이상에서는 3배 레버리지(TQQQ) 신규 진입 자제',
-                    '공포 구간은 오히려 우량 지수(SPLG·VOO) 분할 매수 기회',
+                    'VIX 25 이상에서는 3배 레버리지(TQQQ·SOXL) 신규 진입 자제',
+                    '공포 구간은 오히려 우량 지수(SPLG·VOO·VT) 분할 매수 기회',
                     'VIX가 20 아래로 안정되면 기술주(QQQM) 비중 확대 검토'
                 )
+            },
+            [ordered]@{
+                id = 'oil'; name = 'WTI 국제유가'; value = '$83.40'; numValue = 83.4; unit = '달러'; prev = '$78.90'; delta = '+$4.50'; period = '최신 선물'
+                light = 'red'; tag = '물가 자극 경계'
+                impact = '중동·항로 긴장으로 $80 돌파 · 에너지주 강세, 물가 부담'
+                verdictHeadline = '국제유가가 $83선을 넘어 물가(CPI)와 연준 금리 부담을 다시 키우고 있어요.'
+                targetLine = 75.0; targetLabel = '물가 안정선 $75'
+                nextRelease = '매주 수요일 23:30 · 미 에너지정보청(EIA) 원유재고'
+                history = New-MacroHistory @('26-01','26-02','26-03','26-04','26-05','26-06','26-07','26-08','26-09','26-10','26-11') @(71.2, 73.5, 70.8, 74.1, 72.4, 75.8, 77.2, 74.9, 76.4, 78.9, 83.4)
+                zones = @(
+                    [ordered]@{ range = '$75 이하'; status = '물가 안정'; light = 'green'; meaning = '에너지 비용 부담 완화 · 증시 전반 우호적'; current = $false },
+                    [ordered]@{ range = '$75 ~ $82'; status = '중립 경계'; light = 'yellow'; meaning = '원유·에너지 기업 실적 양호 · 물가 주시'; current = $false },
+                    [ordered]@{ range = '$82 초과'; status = '인플레 압박'; light = 'red'; meaning = '물가 재상승 우려 → 에너지(XLE·USO) 강세, 성장주 부담'; current = $true }
+                )
+                beneficiaries = [ordered]@{ tickers = @('XLE', 'USO', 'NRGU', 'GLD'); reason = '유가 상승이 정유·에너지 이익에 직접 반영' }
+                pressured = [ordered]@{ tickers = @('QQQM', 'TLT', 'SOXL'); reason = '물가 자극 → 고금리 장기화 우려' }
+                actionChecklist = @(
+                    '중동 전쟁·유가 리스크 대비 포트폴리오 5~10%는 XLE·GLD로 헤지',
+                    '3배 에너지(NRGU)는 유가 급락 시 손실이 크므로 단기·소액만',
+                    '유가가 $75 아래로 진정되면 인플레 완화 호재로 주식 비중 확대'
+                )
+            },
+            [ordered]@{
+                id = 'us10y'; name = '미국 10년물 국채금리'; value = '4.85%'; numValue = 4.85; unit = '%'; prev = '4.94%'; delta = '-0.09%p'; period = '장기 금리'
+                light = 'yellow'; tag = '5% 경계 · 진정 시도'
+                impact = '5% 위협 후 4.85%로 소폭 하락 · 장기채(TLT) 반등 여지'
+                verdictHeadline = '10년물 금리가 5% 턱밑에서 내려오며 장기국채(TLT)에 숨통이 트였어요.'
+                targetLine = 4.5; targetLabel = '증시 부담선 4.5%'
+                nextRelease = '매일 미국 채권시장 마감 시 자동 반영'
+                history = New-MacroHistory @('26-01','26-02','26-03','26-04','26-05','26-06','26-07','26-08','26-09','26-10','26-11') @(4.22, 4.31, 4.28, 4.45, 4.38, 4.42, 4.55, 4.61, 4.78, 4.94, 4.85)
+                zones = @(
+                    [ordered]@{ range = '4.2% 이하'; status = '증시 우호'; light = 'green'; meaning = '성장주·장기채(TLT) 동반 강세 환경'; current = $false },
+                    [ordered]@{ range = '4.2% ~ 4.9%'; status = '고금리 경계'; light = 'yellow'; meaning = '장기채 분할 매수 메리트 발생 · 성장주 변동성'; current = $true },
+                    [ordered]@{ range = '4.9% 초과'; status = '금리 쇼크'; light = 'red'; meaning = '주식 밸류에이션 급압박 · 단기채(SGOV) 피신'; current = $false }
+                )
+                beneficiaries = [ordered]@{ tickers = @('TLT', 'IEF', 'SGOV'); reason = '연 4.5% 내외 높은 채권 이자 · 금리 하락 시 시세차익' }
+                pressured = [ordered]@{ tickers = @('QQQ', 'QQQM', 'TQQQ'); reason = '장기 할인율 상승으로 기술주 밸류 부담' }
+                actionChecklist = @(
+                    '10년물 4.8~5.0% 구간은 중기채(IEF)·장기채(TLT) 분할 매수 매력대',
+                    '금리 변동성이 부담되면 TLT 대신 중기국채(IEF)로 안정성 확보',
+                    '4.5% 이하로 하락 전환 시 기술주(QQQM) 반등 탄력 주목'
+                )
+            },
+            [ordered]@{
+                id = 'us2y'; name = '미국 2년물 국채금리'; value = '4.62%'; numValue = 4.62; unit = '%'; prev = '4.54%'; delta = '+0.08%p'; period = '단기 금리'
+                light = 'red'; tag = '연준 금리 반영'
+                impact = '12월 연준 인상 우려 선반영 · 단기채(SGOV·SHY) 이자 매력'
+                verdictHeadline = '2년물 금리는 연준 기준금리를 가장 먼저 반영해요. 단기채 이자가 매력적입니다.'
+                targetLine = 4.0; targetLabel = '기준금리 상단 4.0%'
+                nextRelease = '매일 미국 채권시장 마감 시 자동 반영'
+                history = New-MacroHistory @('26-01','26-02','26-03','26-04','26-05','26-06','26-07','26-08','26-09','26-10','26-11') @(3.98, 4.05, 4.02, 4.18, 4.12, 4.20, 4.30, 4.36, 4.48, 4.54, 4.62)
+                zones = @(
+                    [ordered]@{ range = '3.8% 이하'; status = '금리 인하 반영'; light = 'green'; meaning = '증시 유동성 호재 · 성장주 강세'; current = $false },
+                    [ordered]@{ range = '3.8% ~ 4.4%'; status = '동결 구간'; light = 'yellow'; meaning = '안정적 단기 이자 · 균형 투자 적합'; current = $false },
+                    [ordered]@{ range = '4.4% 초과'; status = '긴축 경계'; light = 'red'; meaning = '초단기채(SGOV)·단기채(SHY)에 유리, 성장주 경계'; current = $true }
+                )
+                beneficiaries = [ordered]@{ tickers = @('SGOV', 'SHY'); reason = '원금 변동 최소화하며 연 4%대 확정 이자 수취' }
+                pressured = [ordered]@{ tickers = @('TQQQ', 'SOXL', 'QQQM'); reason = '단기 차입금리 상승 및 연준 매파 기조 반영' }
+                actionChecklist = @(
+                    '단기 금리가 높을 때는 현금을 놀리지 말고 SGOV·SHY에 파킹',
+                    '2년물 금리가 꺾이기 시작하면 연준 기조 전환 신호로 해석',
+                    '장단기(2년·10년) 금리를 함께 보며 채권 만기 비중 조절'
+                )
+            },
+            [ordered]@{
+                id = 'hy'; name = '하이일드 신용스프레드'; value = '3.62%'; numValue = 3.62; unit = '%'; prev = '3.47%'; delta = '+0.15%p'; period = '기업 부도위험'
+                light = 'green'; tag = '신용 위기 없음'
+                impact = '위기 경계선(5%) 아래 안정 · 폭락장보다 건전한 조정 신호'
+                verdictHeadline = '기업 부도 위험을 뜻하는 신용스프레드가 3.6%로 안정적이라 금융위기 징후는 없어요.'
+                targetLine = 5.0; targetLabel = '침체·위기 경계 5.0%'
+                nextRelease = '매일 FRED(ICE BofA 지수) 자동 반영'
+                history = New-MacroHistory @('26-01','26-02','26-03','26-04','26-05','26-06','26-07','26-08','26-09','26-10','26-11') @(3.15, 3.08, 3.22, 3.35, 3.18, 3.12, 3.25, 3.31, 3.40, 3.47, 3.62)
+                zones = @(
+                    [ordered]@{ range = '4.0% 미만'; status = '신용 안정'; light = 'green'; meaning = '기업 자금조달 원활 · 증시 조정은 매수 기회 성격'; current = $true },
+                    [ordered]@{ range = '4.0% ~ 5.0%'; status = '스트레스 증가'; light = 'yellow'; meaning = '중소형주·고위험 자산 축소 필요'; current = $false },
+                    [ordered]@{ range = '5.0% 초과'; status = '금융위기 경보'; light = 'red'; meaning = '대형 침체·신용경색 위험 → 국채·현금 대피'; current = $false }
+                )
+                beneficiaries = [ordered]@{ tickers = @('SPLG', 'VOO', 'VT', 'SCHD'); reason = '기업 부실 위험 낮아 실적 기반 우상향 유지' }
+                pressured = [ordered]@{ tickers = @('SQQQ'); reason = '시스템 붕괴 없는 장세에서는 인버스 장기 보유 불리' }
+                actionChecklist = @(
+                    'VIX가 28로 높아도 신용스프레드가 4% 미만이면 시스템 위기 아님',
+                    '패닉 셀링 대신 우량 지수(SPLG·VT·SCHD) 분할 매수 근거로 활용',
+                    '만약 5.0%를 급돌파하면 주식 비중을 줄이고 SGOV·TLT로 대피'
+                )
             }
+        )
+        treasuryGuide = @(
+            [ordered]@{ term = '초단기 (0~3개월)'; ticker = 'SGOV'; yield = '4.08%'; risk = '매우 낮음'; role = '달러 파킹 · 급락 대비 현금 대기' },
+            [ordered]@{ term = '단기 (1~3년)'; ticker = 'SHY'; yield = '4.15%'; risk = '낮음'; role = '2년물 금리 추종 · 안전한 이자 방어' },
+            [ordered]@{ term = '중기 (7~10년)'; ticker = 'IEF'; yield = '4.30%'; risk = '보통'; role = '10년물 기준 · TLT보다 덜 흔들리는 균형채' },
+            [ordered]@{ term = '장기 (20년+)'; ticker = 'TLT'; yield = '4.42%'; risk = '다소 높음'; role = '주식 폭락 헤지 · 금리 인하 시 큰 시세차익' }
         )
         globalStory = @(
             [ordered]@{ step = '1'; stage = '발단 · 관세 & 지정학'; light = 'red'; title = '미 무역법 301조 관세 + 중동·에너지 긴장'; desc = '수입 물가와 글로벌 공급망 비용이 다시 자극받는 출발점' },
@@ -697,8 +837,171 @@ $data = [ordered]@{
                 [ordered]@{ title = '12월 금리 인상·관세 변수 앞둔 레버리지 ETF, 손절·현금관리 필수'; source = '투자 경고'; publishedAt = '11.25 14:10'; sentiment = 'negative'; impactLevel = '높음'; summary = 'VIX 20 이하 진정 전까지 QQQM 등 1배수 상품 안전'; url = NewsUrl('TQQQ 리스크 12월 FOMC') },
                 [ordered]@{ title = 'RSI 30 하회 단기 기술적 반등 기대감도 공존, 초소액 대응만'; source = '트레이딩'; publishedAt = '11.24 10:30'; sentiment = 'neutral'; impactLevel = '보통'; summary = '장기 적립보다 단기 반등 확인 후 소액 접근 영역'; url = NewsUrl('TQQQ RSI 과매도') }
             )
+        },
+        [ordered]@{
+            ticker = 'VT'; name = 'Vanguard Total World Stock ETF'; krName = '전 세계 주식 9,800'; category = '대표지수'
+            expenseRatio = '0.07%'; dividendYield = '1.85%'; forwardPE = '17.9배'
+            price = 147.55; changePct = -0.38; return1M = -2.4; return3M = 1.8; return1Y = 14.8
+            high52w = 154.90; low52w = 124.20; mddFromHigh = -4.74; rsi14 = 41.5; ma200 = 141.60; ma200DiffPct = 4.20
+            score = 76; light = 'green'; actionBadge = '글로벌 분산 유리'
+            strategy = '3~5회 분할 · 장기 적립'; entryRatio = '1회 25%'; riskLevel = 2
+            compareTip = '미국(62%) + 유럽·일본·신흥국(38%)까지 ETF 1개로 전 세계 경제에 투자해요.'
+            actionSummary = '미국 관세·단일국가 리스크를 줄이면서 전 세계 주식에 초분산 투자하기 좋아요.'
+            breakdown = [ordered]@{ valuation = 76; technical = 74; newsSentiment = 72; fxBonus = 66 }
+            bullFactors = @('미국 외 유럽·아시아·신흥국까지 9,800개 기업 분산', '선행 PER 17.9배로 미국 단독(20.8배) 대비 밸류 부담 낮음', '연 0.07% 저보수 · 배당률 1.85%로 안정적')
+            bearFactors = @('강달러·관세 갈등 시 비미국 증시 단기 약세 가능', '미국 빅테크 단독 랠리 때는 VOO·QQQM보다 완만')
+            history = New-Series -StartVal 128.5 -EndVal 147.55 -PeakVal 154.9 -TroughVal 124.2 -PeakIdx 22 -Seed 121
+            news = @(
+                [ordered]@{ title = '미국 기술주 변동성 커지며 전 세계 분산 ETF(VT) 자금 유입 증가'; source = 'ETF 플로우'; publishedAt = '11.25 17:40'; sentiment = 'positive'; impactLevel = '높음'; summary = '미국 편중 위험을 낮추려는 장기 적립 자금 유입'; url = NewsUrl('VT 전세계 주식 ETF 분산투자') },
+                [ordered]@{ title = '글로벌 관세 우려 속 비미국 증시 단기 경계감, 장기 분할 유효'; source = '글로벌 마켓'; publishedAt = '11.24 15:20'; sentiment = 'neutral'; impactLevel = '보통'; summary = '특정 국가 리스크 회피 목적의 1개 완성형 포트폴리오'; url = NewsUrl('VT VOO 비교 글로벌 ETF') }
+            )
+        },
+        [ordered]@{
+            ticker = 'IEF'; name = 'iShares 7-10 Year Treasury Bond'; krName = '미국 중기국채 7~10년'; category = '채권·금'
+            expenseRatio = '0.15%'; dividendYield = '4.30%'; forwardPE = '-'
+            price = 92.36; changePct = 0.52; return1M = 1.5; return3M = -0.6; return1Y = -1.8
+            high52w = 97.40; low52w = 89.80; mddFromHigh = -5.17; rsi14 = 53.2; ma200 = 93.40; ma200DiffPct = -1.11
+            score = 75; light = 'green'; actionBadge = '중기채 균형 유리'
+            strategy = '주식 20% 헤지 분할 매수'; entryRatio = '1회 25%'; riskLevel = 2
+            compareTip = 'TLT(20년+)는 변동성이 너무 크고 SGOV(초단기)는 차익이 없을 때, 가장 균형 잡힌 중기국채예요.'
+            actionSummary = '10년물 금리 4.85%의 높은 이자를 받으면서 TLT보다 변동성이 절반 이하로 안정적이에요.'
+            breakdown = [ordered]@{ valuation = 77; technical = 72; newsSentiment = 76; fxBonus = 66 }
+            bullFactors = @('10년물 4.85% 고금리 구간 · 연 4.3% 월분배 이자', '장기채(TLT) 대비 가격 출렁임이 절반 수준으로 안정', '증시 급락 시 국채 안전자산 유입 수혜')
+            bearFactors = @('10년물 금리 5% 재돌파 시 단기 가격 소폭 하락 가능', '금리 급락 시 시세차익 폭은 TLT보다 작음')
+            history = New-Series -StartVal 94.1 -EndVal 92.36 -PeakVal 97.4 -TroughVal 89.8 -PeakIdx 15 -Seed 122
+            news = @(
+                [ordered]@{ title = '미국 10년물 금리 4.85%대 진정… 중기국채 IEF 안정적 방어력 부각'; source = '채권 리포트'; publishedAt = '11.25 19:00'; sentiment = 'positive'; impactLevel = '높음'; summary = '장기채 변동성이 부담스러운 투자자의 핵심 대안'; url = NewsUrl('IEF 미국 중기국채 TLT 비교') },
+                [ordered]@{ title = '물가 3.8% 고착화 속 중기 듀레이션 분산 전략 추천'; source = '채권 전략'; publishedAt = '11.24 11:30'; sentiment = 'positive'; impactLevel = '보통'; summary = '단기(SGOV)·중기(IEF)·장기(TLT) 분할 보유 유리'; url = NewsUrl('IEF 미국 국채 ETF') }
+            )
+        },
+        [ordered]@{
+            ticker = 'SHY'; name = 'iShares 1-3 Year Treasury Bond'; krName = '미국 단기국채 1~3년'; category = '채권·금'
+            expenseRatio = '0.15%'; dividendYield = '4.15%'; forwardPE = '-'
+            price = 81.57; changePct = 0.08; return1M = 0.4; return3M = 0.9; return1Y = 3.8
+            high52w = 82.45; low52w = 80.70; mddFromHigh = -1.07; rsi14 = 51.0; ma200 = 81.65; ma200DiffPct = -0.10
+            score = 76; light = 'green'; actionBadge = '단기채 안정 유리'
+            strategy = '안전자산 · 수시 분할 매수'; entryRatio = '여유자금 50%'; riskLevel = 1
+            compareTip = 'SGOV(0~3개월)보다 만기가 살짝 길어, 향후 금리 인하 시 소폭 가격 상승도 기대할 수 있어요.'
+            actionSummary = '미국 2년물 국채(4.62%)를 추종해 원금이 매우 안정적이고 월이자가 꼬박꼬박 나와요.'
+            breakdown = [ordered]@{ valuation = 79; technical = 76; newsSentiment = 76; fxBonus = 66 }
+            bullFactors = @('미국 2년물 4.62% 고금리 수혜 · 연 4.15% 월배당', '52주 변동폭 ±1% 내외로 원금 방어력 최상위', '금리 인하 전환 시 SGOV보다 소폭의 자본차익 추가')
+            bearFactors = @('환율 하락 시 원화 환산 수익 감소 가능', '주식 강세장에서는 수익률이 연 4%대로 제한')
+            history = New-Series -StartVal 81.1 -EndVal 81.57 -PeakVal 82.45 -TroughVal 80.7 -PeakIdx 16 -Seed 123
+            news = @(
+                [ordered]@{ title = '미국 2년물 금리 4.62% 고공행진, 단기국채 SHY·SGOV 자금 유입'; source = '채권 속보'; publishedAt = '11.25 16:50'; sentiment = 'positive'; impactLevel = '높음'; summary = '고금리 장기화 구간에서 가장 안전한 이자 수익처'; url = NewsUrl('SHY 미국 단기국채 ETF') },
+                [ordered]@{ title = '12월 FOMC 앞두고 단기채로 변동성 피난하는 투자자 증가'; source = 'ETF 트렌드'; publishedAt = '11.24 14:10'; sentiment = 'positive'; impactLevel = '보통'; summary = '현금 대기 및 포트폴리오 변동성 완충 역할'; url = NewsUrl('SHY SGOV 비교 미국 단기채') }
+            )
+        },
+        [ordered]@{
+            ticker = 'XLE'; name = 'Energy Select Sector SPDR Fund'; krName = '미국 에너지 · 석유 대표'; category = '채권·금'
+            expenseRatio = '0.09%'; dividendYield = '3.25%'; forwardPE = '13.8배'
+            price = 61.10; changePct = 1.24; return1M = 5.4; return3M = 7.8; return1Y = 15.2
+            high52w = 62.80; low52w = 49.60; mddFromHigh = -2.71; rsi14 = 61.4; ma200 = 56.20; ma200DiffPct = 8.72
+            score = 71; light = 'green'; actionBadge = '유가·전쟁 헤지'
+            strategy = '포트폴리오 5~10% 분산'; entryRatio = '1회 20%'; riskLevel = 3
+            compareTip = '유가·전쟁에 대비할 때 3배 레버리지(NRGU)보다 훨씬 안전하고 배당(3.25%)도 주는 1배수 정석 ETF예요.'
+            actionSummary = 'WTI 유가 $83 돌파와 중동 긴장의 직접 수혜! PER 13.8배·배당 3.25%로 전쟁·인플레 헤지에 좋아요.'
+            breakdown = [ordered]@{ valuation = 76; technical = 62; newsSentiment = 80; fxBonus = 66 }
+            bullFactors = @('WTI 국제유가 $83 돌파 · 중동 에너지 긴장 직접 수혜', '엑슨모빌·셰브론 등 초우량 석유기업 · 배당률 3.25%', '선행 PER 13.8배로 기술주 대비 현저히 저렴')
+            bearFactors = @('중동 긴장 완화 또는 경기 둔화로 유가 급락 시 동반 조정', '최근 1개월 +5.4% 상승해 단기 추격보다 분할 접근')
+            history = New-Series -StartVal 53.0 -EndVal 61.1 -PeakVal 62.8 -TroughVal 49.6 -PeakIdx 24 -Seed 124
+            news = @(
+                [ordered]@{ title = 'WTI 유가 $83 돌파·중동 항로 긴장… 미국 에너지 ETF(XLE) 강세'; source = '원자재 뉴스'; publishedAt = '11.25 22:00'; sentiment = 'positive'; impactLevel = '높음'; summary = '기술주 급락장 속 유가 상승 수혜로 뚜렷한 방어·상승 흐름'; url = NewsUrl('XLE 미국 에너지 ETF 국제유가') },
+                [ordered]@{ title = '미국 대형 석유기업 배당·자사주 매입 확대, 인플레 헤지 매력'; source = '에너지 리포트'; publishedAt = '11.24 15:40'; sentiment = 'positive'; impactLevel = '보통'; summary = '고물가·전쟁 리스크를 상쇄하는 실물 기반 배당 자산'; url = NewsUrl('XLE 엑슨모빌 셰브론 배당') }
+            )
+        },
+        [ordered]@{
+            ticker = 'USO'; name = 'United States Oil Fund'; krName = 'WTI 국제유가 선물'; category = '채권·금'
+            expenseRatio = '0.60%'; dividendYield = '0.00%'; forwardPE = '-'
+            price = 139.89; changePct = 1.68; return1M = 6.9; return3M = 9.2; return1Y = 18.4
+            high52w = 143.50; low52w = 112.40; mddFromHigh = -2.52; rsi14 = 64.2; ma200 = 127.80; ma200DiffPct = 9.46
+            score = 59; light = 'yellow'; actionBadge = '유가 급등 · 분할'
+            strategy = '단기 헤지 · 소액 분할'; entryRatio = '1회 10~15%'; riskLevel = 4
+            compareTip = '장기 보유 시 선물 롤오버 비용(보수 0.60%)이 발생하므로 장기 헤지는 XLE(배당 3.25%·보수 0.09%)가 유리해요.'
+            actionSummary = 'WTI 국제유가를 직접 추종해요. 최근 급등(RSI 64)으로 추격 매수보다 눌림목 단기 헤지가 적합해요.'
+            breakdown = [ordered]@{ valuation = 55; technical = 54; newsSentiment = 72; fxBonus = 66 }
+            bullFactors = @('중동·해상 물류 위협 시 국제유가 상승에 즉각 연동', '인플레이션 재상승 국면에서 주식 손실 상쇄 효과')
+            bearFactors = @('연 0.60% 높은 보수 및 원유 선물 롤오버 비용(장기 보유 불리)', '단기 급등(고점 대비 -2.5%)으로 유가 진정 시 빠른 되돌림')
+            history = New-Series -StartVal 118.2 -EndVal 139.89 -PeakVal 143.5 -TroughVal 112.4 -PeakIdx 24 -Seed 125
+            news = @(
+                [ordered]@{ title = 'WTI 원유 $83~84선 상승, 중동 공급 차질 우려에 USO 강세'; source = '원자재 속보'; publishedAt = '11.25 21:10'; sentiment = 'positive'; impactLevel = '높음'; summary = '지정학 리스크가 유가 선물 ETF에 단기 상승 동력 제공'; url = NewsUrl('USO WTI 국제유가 ETF') },
+                [ordered]@{ title = '원유 선물 ETF는 장기 보유 시 롤오버 비용 유의, 단기 헤지 적합'; source = '투자 가이드'; publishedAt = '11.23 13:40'; sentiment = 'neutral'; impactLevel = '보통'; summary = '중장기 에너지 투자는 XLE가 비용·배당 면에서 유리'; url = NewsUrl('USO XLE 비교 원유 ETF') }
+            )
+        },
+        [ordered]@{
+            ticker = 'SOXL'; name = 'Direxion Daily Semi Bull 3X'; krName = '미국 반도체 3배 레버리지'; category = '레버리지'
+            expenseRatio = '0.76%'; dividendYield = '0.82%'; forwardPE = '-'
+            price = 32.02; changePct = -6.85; return1M = -31.2; return3M = -19.8; return1Y = 22.5
+            high52w = 54.60; low52w = 19.80; mddFromHigh = -41.36; rsi14 = 28.4; ma200 = 36.80; ma200DiffPct = -12.99
+            score = 30; light = 'red'; actionBadge = '초고위험 · 관망'
+            strategy = '관세·VIX 진정 후 초소액'; entryRatio = '관망 (5% 이하)'; riskLevel = 5
+            compareTip = '반도체 1배수(SOXX)가 15% 빠질 때 SOXL은 -41% 급락해요. VIX 20 이하 안정 전엔 SOXX가 안전합니다.'
+            actionSummary = '서학개미 거래량 최상위지만 고점 대비 -41% 급락 + 관세 악재 + VIX 28 구간이라 섣불리 물타기하면 위험해요.'
+            breakdown = [ordered]@{ valuation = 62; technical = 28; newsSentiment = 16; fxBonus = 66 }
+            bullFactors = @('고점 대비 -41.4% · RSI 28.4 극단적 과매도 구간', '반도체 반등장 전환 시 압도적인 단기 수익 탄력')
+            bearFactors = @('무역법 301조 관세·AI 조정 악재가 3배로 증폭 타격', '200일선(-13%) 대폭 하회 · VIX 28에서 음의 복리 극심', '하루 ±7~10% 급등락으로 원금 손실 위험 매우 높음')
+            history = New-Series -StartVal 26.2 -EndVal 32.02 -PeakVal 54.6 -TroughVal 19.8 -PeakIdx 20 -Seed 126
+            news = @(
+                [ordered]@{ title = '관세·반도체 투매에 3배 레버리지 SOXL 한 달 -31% 급락, 개인 매수세 경계'; source = '월가 속보'; publishedAt = '11.25 23:30'; sentiment = 'negative'; impactLevel = '높음'; summary = '서학개미 저가 매수가 몰리나 하락 추세 중 3배 손실 위험 극대화'; url = NewsUrl('SOXL 반도체 3배 레버리지 급락') },
+                [ordered]@{ title = 'SOXL 200일선 크게 이탈… VIX 25 초과 구간서 레버리지 보유 주의'; source = '리스크 리포트'; publishedAt = '11.25 14:45'; sentiment = 'negative'; impactLevel = '높음'; summary = '바닥 확인 전 추격 물타기보다 SOXX 1배수 분할이 안전'; url = NewsUrl('SOXL SOXX 차이 변동성') }
+            )
+        },
+        [ordered]@{
+            ticker = 'NRGU'; name = 'MicroSectors U.S. Big Oil 3X ETN'; krName = '미국 빅오일 3배 레버리지'; category = '레버리지'
+            expenseRatio = '0.95%'; dividendYield = '0.00%'; forwardPE = '-'
+            price = 45.83; changePct = 3.42; return1M = 14.8; return3M = 21.5; return1Y = 32.4
+            high52w = 48.90; low52w = 29.40; mddFromHigh = -6.28; rsi14 = 63.8; ma200 = 37.90; ma200DiffPct = 20.92
+            score = 48; light = 'yellow'; actionBadge = '유가 급등 · 고변동'
+            strategy = '단기 트레이딩 · 익절 관리'; entryRatio = '5% 이하 소액'; riskLevel = 5
+            compareTip = '엑슨모빌 등 미국 대형 석유주 10개를 3배 추종하는 ETN(만기·신용위험 존재). 장기 투자는 XLE(1배수) 권장!'
+            actionSummary = '유가 $83 돌파로 최근 한 달 +14.8% 급등했지만 200일선 대비 +21% 과열권이라 추격 매수는 위험해요.'
+            breakdown = [ordered]@{ valuation = 45; technical = 38; newsSentiment = 74; fxBonus = 66 }
+            bullFactors = @('WTI 유가 $83 돌파·중동 긴장 시 3배 레버리지 급등 탄력', '미국 빅오일 10개 기업 집중 수혜')
+            bearFactors = @('200일선 대비 +20.9% 단기 과열 · 유가 반락 시 -10% 이상 급락', 'ETN 구조(발행사 신용위험) + 연 0.95% 고보수 · 장기 보유 부적합')
+            history = New-Series -StartVal 34.6 -EndVal 45.83 -PeakVal 48.9 -TroughVal 29.4 -PeakIdx 24 -Seed 127
+            news = @(
+                [ordered]@{ title = '국제유가 $83 돌파에 빅오일 3배 NRGU 한 달 +15% 급등'; source = '에너지 마켓'; publishedAt = '11.25 22:15'; sentiment = 'positive'; impactLevel = '높음'; summary = '중동 리스크와 유가 강세에 힘입어 레버리지 에너지 강세'; url = NewsUrl('NRGU 미국 빅오일 3배 ETN 유가') },
+                [ordered]@{ title = 'NRGU 단기 과열권 진입… 유가 진정 시 3배 급락 및 ETN 구조 유의'; source = '투자 주의'; publishedAt = '11.24 16:30'; sentiment = 'negative'; impactLevel = '높음'; summary = '추격 매수보다 분할 익절·XLE 1배수 전환 전략 권장'; url = NewsUrl('NRGU XLE 차이 레버리지 주의') }
+            )
+        },
+        [ordered]@{
+            ticker = 'SQQQ'; name = 'ProShares UltraPro Short QQQ'; krName = '나스닥 100 3배 인버스(하락)'; category = '레버리지'
+            expenseRatio = '0.95%'; dividendYield = '4.10%'; forwardPE = '-'
+            price = 49.60; changePct = 4.22; return1M = 21.4; return3M = 4.2; return1Y = -44.8
+            high52w = 92.40; low52w = 37.80; mddFromHigh = -46.32; rsi14 = 68.5; ma200 = 51.20; ma200DiffPct = -3.12
+            score = 38; light = 'red'; actionBadge = '단기 헤지 전용'
+            strategy = '장기 보유 금지 · 단기 헤지'; entryRatio = '헤지용 5% 이하'; riskLevel = 5
+            compareTip = '나스닥이 떨어질 때 3배 오르는 상품! 1년 수익 -45%처럼 장기 보유 시 원금이 녹으니 단기 보험용만 쓰세요.'
+            actionSummary = '11월 기술주 하락으로 한 달 +21% 급등해 단기 과열(RSI 68.5) 상태예요. 지금 추격 매수는 위험합니다.'
+            breakdown = [ordered]@{ valuation = 35; technical = 32; newsSentiment = 52; fxBonus = 66 }
+            bullFactors = @('나스닥 급락장 시 보유 기술주 손실을 단기적으로 상쇄(헤지)', '11월 기술주 조정으로 단기 매수 수급 급증')
+            bearFactors = @('나스닥 반등 시 3배 급락 · RSI 68.5 단기 과열 구간', '장기 우상향 증시 구조상 장기 보유 시 음의 복리로 원금 급감')
+            history = New-Series -StartVal 89.8 -EndVal 49.6 -PeakVal 92.4 -TroughVal 37.8 -PeakIdx 1 -Seed 128
+            news = @(
+                [ordered]@{ title = '나스닥 11월 급락에 3배 인버스 SQQQ 한 달 +21% 급등, 단기 헤지 몰려'; source = '월가 트레이딩'; publishedAt = '11.25 23:10'; sentiment = 'positive'; impactLevel = '보통'; summary = '하락장 방어 수급이 몰렸으나 나스닥 과매도(RSI 33) 구간 진입 주의'; url = NewsUrl('SQQQ 나스닥 3배 인버스 급등') },
+                [ordered]@{ title = '나스닥 RSI 과매도 도달… SQQQ 추격 매수 시 반등장 급락 주의'; source = '투자 경고'; publishedAt = '11.25 13:50'; sentiment = 'negative'; impactLevel = '높음'; summary = '공포지수 15 구간에서는 인버스 신규 추격보다 분할 익절 영역'; url = NewsUrl('SQQQ 인버스 리스크 주의') }
+            )
         }
     )
+}
+
+# TQQQ 카테고리도 '레버리지'로 통일
+foreach ($etf in $data.etfs) {
+    if ($etf.ticker -eq 'TQQQ') { $etf.category = '레버리지' }
+}
+
+# 수급 흐름 점수 (flowScore: +100 강한 순매수 ~ -100 강한 순매도) 부여 (2026년 11월 실제 자금 흐름 반영)
+$flowMap = @{
+    'SGOV' = 92; 'SCHD' = 88; 'TLT'  = 78; 'SPLG' = 82; 'VOO'  = 76; 'JEPI' = 72
+    'IEF'  = 66; 'SHY'  = 68; 'VT'   = 64; 'XLE'  = 62; 'VTI'  = 58; 'SPY'  = 45
+    'JEPQ' = 42; 'USO'  = 38; 'NRGU' = 28; 'SQQQ' = 35; 'QQQM' = 22; 'GLD'  = -18
+    'QQQ'  = -42; 'XLK' = -48; 'TQQQ' = -64; 'SOXX' = -72; 'SMH' = -84; 'SOXL' = -88
+}
+
+foreach ($etf in $data.etfs) {
+    $fs = if ($flowMap.ContainsKey($etf.ticker)) { $flowMap[$etf.ticker] } else { 0 }
+    $etf['flowScore'] = $fs
+    $etf['flowLabel'] = if ($fs -ge 65) { '강한 순매수' } elseif ($fs -ge 20) { '순매수 우위' } elseif ($fs -gt -20) { '매수·매도 균형' } elseif ($fs -gt -60) { '순매도 우위' } else { '강한 순매도' }
 }
 
 # 각 ETF별 매력적인 가격 구간(적극 분할 / 적정 적립 / 추격 주의) 자동 산출

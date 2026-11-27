@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="description" content="미국 ETF 16종 매수 신호등, 매력 가격구간, 환전 타이밍, 글로벌 스토리, 매수·환전 일지와 포트폴리오 분석을 한눈에 확인하세요." />
-  <title>제미나이 경제 — 미국 ETF · 환전 · 거시 브리핑</title>
+  <meta name="description" content="미국 ETF 24종·미국주식 20종 매수 신호등, 매력 가격구간, 환전 타이밍, 글로벌 스토리, 매수·환전 일지와 포트폴리오 분석을 한눈에 확인하세요." />
+  <title>제미나이 경제 — 미국 ETF · 주식 · 환전 · 거시 브리핑</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -67,10 +68,22 @@
       </div>
 
       <div class="surface list-card">
+        <!-- ETF 신호등 / 미국주식 신호등 별도 전환 탭 -->
+        <div class="market-tabs" id="marketAssetTabs" role="tablist" aria-label="시장 신호등 선택">
+          <button class="market-tab active" data-market="etf" type="button" role="tab" aria-selected="true">
+            <span>미국 ETF 신호등</span>
+            <em class="mt-count" id="tabEtfCount">24</em>
+          </button>
+          <button class="market-tab" data-market="stock" type="button" role="tab" aria-selected="false">
+            <span>미국주식 신호등</span>
+            <em class="mt-count" id="tabStockCount">20</em>
+          </button>
+        </div>
+
         <div class="list-header">
           <div>
-            <h2 class="section-title">미국 ETF 신호등 <span class="count-muted" id="etfCountLabel">24</span></h2>
-            <p class="section-sub">종목을 누르면 매력 가격구간·6가지 근거·관련 뉴스 요약이 열립니다</p>
+            <h2 class="section-title"><span id="marketListTitle">미국 ETF 신호등</span> <span class="count-muted" id="etfCountLabel">24</span></h2>
+            <p class="section-sub" id="marketListSub">종목을 누르면 매력 가격구간·6가지 근거·관련 뉴스 요약이 열립니다</p>
           </div>
           <select class="minimal-select" id="etfSortSelect" aria-label="정렬 기준">
             <option value="score">매력도 높은순</option>
@@ -86,19 +99,11 @@
         <div class="filter-controls">
           <div class="search-field">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="search" id="etfSearchInput" placeholder="SOXL, NRGU, VT, QQQM, IEF, SGOV, 유가, 배당 검색" aria-label="ETF 검색" />
+            <input type="search" id="etfSearchInput" placeholder="SOXL, NRGU, VT, QQQM, IEF, SGOV, 유가, 배당 검색" aria-label="종목 검색" />
           </div>
 
           <div class="filter-rows">
-            <div class="pill-scroll" id="categoryFilters" role="group" aria-label="카테고리">
-              <button class="pill active" data-category="전체" type="button">전체</button>
-              <button class="pill" data-category="관심" type="button">★ 관심</button>
-              <button class="pill" data-category="대표지수" type="button">대표지수</button>
-              <button class="pill" data-category="배당·인컴" type="button">배당·인컴</button>
-              <button class="pill" data-category="기술·반도체" type="button">기술·반도체</button>
-              <button class="pill" data-category="채권·금" type="button">채권·금·원유</button>
-              <button class="pill" data-category="레버리지" type="button">레버리지 3x</button>
-            </div>
+            <div class="pill-scroll" id="categoryFilters" role="group" aria-label="카테고리"></div>
             <div class="signal-seg" id="signalFilters" role="group" aria-label="신호 필터">
               <button class="seg-btn active" data-light="all" type="button">전체</button>
               <button class="seg-btn" data-light="green" type="button"><i class="sdot green"></i>유리</button>

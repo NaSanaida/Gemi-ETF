@@ -30,6 +30,7 @@ const ETF_QUERIES = {
   VOO: 'VOO S&P500 미국증시 ETF',
   SPLG: 'SPLG S&P500 미국증시 ETF',
   SPY: 'SPY S&P500 미국증시 ETF',
+  VT: 'VT 전세계 주식 ETF',
   QQQ: 'QQQ 나스닥100 미국 기술주 ETF',
   QQQM: 'QQQM 나스닥100 ETF',
   SCHD: 'SCHD 미국 배당 ETF',
@@ -37,12 +38,42 @@ const ETF_QUERIES = {
   SMH: 'SMH 반도체 ETF AI',
   XLK: 'XLK 미국 테크 기술주 ETF',
   TLT: 'TLT 미국 장기국채 금리 ETF',
+  IEF: 'IEF 미국 중기국채 금리 ETF',
+  SHY: 'SHY 미국 단기국채 금리 ETF',
   SGOV: 'SGOV 미국 초단기국채 파킹 ETF',
   GLD: 'GLD 금값 국제금시세 ETF',
+  XLE: 'XLE 미국 에너지 석유 ETF',
+  USO: 'USO WTI 국제유가 ETF',
   JEPI: 'JEPI 미국 월배당 커버드콜 ETF',
   JEPQ: 'JEPQ 나스닥 월배당 ETF',
   VTI: 'VTI 미국 전체주식 ETF',
-  TQQQ: 'TQQQ 나스닥 3배 레버리지 ETF'
+  TQQQ: 'TQQQ 나스닥 3배 레버리지 ETF',
+  SOXL: 'SOXL 반도체 3배 레버리지 ETF',
+  NRGU: 'NRGU 빅오일 에너지 3배 ETN',
+  SQQQ: 'SQQQ 나스닥 3배 인버스 ETF'
+};
+
+const STOCK_QUERIES = {
+  NVDA: '엔비디아 NVDA 주가 AI 반도체',
+  AAPL: '애플 AAPL 아이폰 미국주식',
+  MSFT: '마이크로소프트 MSFT 애저 AI 주가',
+  AMZN: '아마존 AMZN AWS 미국주식',
+  GOOGL: '구글 알파벳 GOOGL 제미나이 주가',
+  META: '메타 META AI 광고 주가',
+  TSLA: '테슬라 TSLA 전기차 자율주행 주가',
+  AVGO: '브로드컴 AVGO AI 반도체 주가',
+  AMD: 'AMD 반도체 AI 칩 주가',
+  TSM: 'TSMC TSM 파운드리 반도체 주가',
+  PLTR: '팔란티어 PLTR AI 소프트웨어 주가',
+  ORCL: '오라클 ORCL 클라우드 AI 주가',
+  'BRK-B': '버크셔 해서웨이 워렌버핏 주가',
+  JPM: 'JP모건 JPM 미국 은행주 실적',
+  KO: '코카콜라 KO 미국 배당주',
+  O: '리얼티인컴 월배당 리츠 주가',
+  COST: '코스트코 COST 미국 소비재 실적',
+  LLY: '일라이릴리 LLY 비만치료제 주가',
+  XOM: '엑슨모빌 XOM 국제유가 에너지 주가',
+  LMT: '록히드마틴 LMT 미국 방산주'
 };
 
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -457,7 +488,43 @@ async function main() {
     }
   }
 
-  for (const [id, series] of [['fed', 'FEDFUNDS'], ['unemp', 'UNRATE'], ['spread', 'T10Y2Y']]) {
+  // WTI 국제유가 & 미국 10년물 국채금리 실시간 반영
+  const oilChart = await fetchYahooChart('CL=F', '1mo');
+  if (oilChart && oilChart.points.length >= 2) {
+    okCount++;
+    const curOil = oilChart.points[oilChart.points.length - 1].close;
+    const prevOil = oilChart.points[oilChart.points.length - 2].close;
+    const oilInd = data.macro.indicators.find((x) => x.id === 'oil');
+    if (oilInd) {
+      oilInd.value = `$${curOil.toFixed(2)}`;
+      oilInd.numValue = curOil;
+      oilInd.prev = `$${prevOil.toFixed(2)}`;
+      oilInd.light = curOil <= 75 ? 'green' : curOil <= 82 ? 'yellow' : 'red';
+      oilInd.tag = curOil <= 75 ? '물가 안정' : curOil <= 82 ? '중립 경계' : '물가 자극 경계';
+    }
+  }
+
+  const tnxChart = await fetchYahooChart('^TNX', '1mo');
+  if (tnxChart && tnxChart.points.length >= 2) {
+    okCount++;
+    const cur10y = round2(tnxChart.points[tnxChart.points.length - 1].close);
+    const prev10y = round2(tnxChart.points[tnxChart.points.length - 2].close);
+    const ind10y = data.macro.indicators.find((x) => x.id === 'us10y');
+    if (ind10y) {
+      ind10y.value = `${cur10y}%`;
+      ind10y.numValue = cur10y;
+      ind10y.prev = `${prev10y}%`;
+      ind10y.light = cur10y <= 4.2 ? 'green' : cur10y <= 4.9 ? 'yellow' : 'red';
+    }
+  }
+
+  for (const [id, series] of [
+    ['fed', 'FEDFUNDS'],
+    ['unemp', 'UNRATE'],
+    ['spread', 'T10Y2Y'],
+    ['us2y', 'DGS2'],
+    ['hy', 'BAMLH0A0HYM2']
+  ]) {
     const fr = await fetchFredLatest(series);
     if (fr) {
       okCount++;
@@ -471,8 +538,9 @@ async function main() {
     }
   }
 
-  // 3. ETF별 최신 시세·지표·한글 뉴스
-  for (const etf of data.etfs) {
+  // 3. ETF 24종 + 미국 개별주식 20종 최신 시세·지표·한글 뉴스
+  const allTargets = [...(data.etfs || []), ...(data.stocks || [])];
+  for (const etf of allTargets) {
     const chart = await fetchYahooChart(etf.ticker, '1y');
     if (chart && chart.points.length > 20) {
       okCount++;
@@ -486,7 +554,8 @@ async function main() {
       const ma200 = calcMA(closes, 200);
       const ma200Diff = ma200 > 0 ? round2(((cur - ma200) / ma200) * 100) : 0;
 
-      const news = await fetchGoogleNews(ETF_QUERIES[etf.ticker] || `${etf.ticker} 미국 ETF`, 4);
+      const qText = ETF_QUERIES[etf.ticker] || STOCK_QUERIES[etf.ticker] || `${etf.ticker} 미국 주식`;
+      const news = await fetchGoogleNews(qText, 4);
       if (news.length) etf.news = dedupeNews(news, 4);
 
       const pos = etf.news.filter((n) => n.sentiment === 'positive').length;

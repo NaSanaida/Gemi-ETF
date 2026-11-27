@@ -1,15 +1,17 @@
-name: 미국 ETF·환율·거시경제 자동 최신화 (3시간 간격)
+name: 미국 ETF·주식·환율·뉴스 자동 최신화 (15분 간격)
 
 on:
   schedule:
-    # 매일 미국 정규장 마감 직후 (한국시간 오전 07:10)
-    - cron: '10 22 * * 1-5'
-    # 매일 3시간마다 환율·시세·국제정황 뉴스 요약본 자동 갱신 (한국시간 00, 03, 06, 09, 12, 15, 18, 21시)
-    - cron: '0 */3 * * *'
+    # 매일 15분마다 실시간 환율(KRW=X)·ETF 24종·미국주식 20종·최신 뉴스 자동 갱신 (공개 저장소 무료)
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: market-data-update
+  cancel-in-progress: false
 
 jobs:
   update-market-data:
@@ -31,5 +33,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "Gemini Econ Bot"
           git add data/market-data.json data/market-data.js
-          git diff --staged --quiet || git commit -m "chore: 시세·환율·뉴스 요약본 자동 최신화 ($(date +'%Y-%m-%d %H:%M UTC'))"
+          git diff --staged --quiet || git commit -m "chore: 시세·환율·뉴스 자동 최신화 ($(date +'%Y-%m-%d %H:%M UTC'))"
           git push

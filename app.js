@@ -372,10 +372,27 @@
   }
 
   // ==================== 1. 오늘의 결론 & 시각화 데일리 브리핑 ====================
+  function formatKstFromDate(dateInput) {
+    const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (!d || Number.isNaN(d.getTime())) return null;
+    const kst = new Date(d.getTime() + (d.getTimezoneOffset() + 540) * 60000);
+    const m = String(kst.getMonth() + 1).padStart(2, '0');
+    const day = String(kst.getDate()).padStart(2, '0');
+    const hh = String(kst.getHours()).padStart(2, '0');
+    const mm = String(kst.getMinutes()).padStart(2, '0');
+    return `${m}.${day} ${hh}:${mm}`;
+  }
+
   function renderOverview() {
     const { meta, overview, fx, macro } = state.data;
-    $('#updatedLabel').textContent = meta.updatedLabel;
-    $('#sourceModeBadge').textContent = meta.sourceMode === 'live' ? '실시간 반영됨' : '데일리 브리핑';
+    const realProvidedTime = formatKstFromDate(meta.updatedAt);
+    $('#updatedLabel').textContent = realProvidedTime ? `자료 ${realProvidedTime} · 15분 자동` : meta.updatedLabel;
+    $('#sourceModeBadge').textContent =
+      meta.fxProvidedLabel
+        ? `환율 ${meta.fxProvidedLabel} 제공`
+        : meta.sourceMode === 'live'
+          ? '15분 자동수집'
+          : '기준 스냅샷';
     $('#heroHeadline').textContent = overview.headline || '분할 매수 · 방어 우선';
     const subEl = $('#heroSubline');
     if (subEl) subEl.textContent = overview.subHeadline || '환율은 유리, 증시는 불안. 우량·배당부터 나눠 담으세요.';
@@ -2600,13 +2617,68 @@
   }
 
   async function fetchLiveUsdKrw() {
-    // 1순위: open.er-api.com (CORS 지원, 무료 실시간 환율)
-    const r1 = await fetchJsonWithTimeout('https://open.er-api.com/v6/latest/USD', 5000);
-    if (r1?.rates?.KRW) return Math.round(Number(r1.rates.KRW) * 100) / 100;
-    // 2순위: frankfurter.app (유럽중앙은행 공식 환율, CORS 지원)
-    const r2 = await fetchJsonWithTimeout('https://api.frankfurter.app/latest?from=USD&to=KRW', 5000);
-    if (r2?.rates?.KRW) return Math.round(Number(r2.rates.KRW) * 100) / 100;
+    // 1순위: open.er-api.com (CORS 직접 지원 · 실제 환율 산출 시각 time_last_update_utc 포함)
+    const erApi = await fetchJsonWithTimeout('https://open.er-api.com/v6/latest/USD', 3000);
+    if (erApi?.rates?.KRW) {
+      const providedIso = erApi.time_last_update_utc ? new Date(erApi.time_last_update_utc).toISOString() : null;
+      return {
+        rate: Math.round(Number(erApi.rates.KRW) * 100) / 100,
+        source: 'ExchangeRate-API',
+        providedIso,
+        providedLabel: providedIso ? formatKstFromDate(providedIso) : null
+      };
+    }
+    // 2순위: frankfurter.app (유럽중앙은행 공식 환율, date 포함)
+    const r2 = await fetchJsonWithTimeout('https://api.frankfurter.app/latest?from=USD&to=KRW', 3500);
+    if (r2?.rates?.KRW) {
+      return {
+        rate: Math.round(Number(r2.rates.KRW) * 100) / 100,
+        source: 'ECB(Frankfurter)',
+        providedIso: r2.date ? `${r2.date}T16:00:00Z` : null,
+        providedLabel: r2.date ? r2.date.slice(5).replace('-', '.') : null
+      };
+    }
+    // 3순위: Yahoo Finance KRW=X (프록시 폴백)
+    const yahooFx = await fetchYahooLiveBrowser('KRW=X', 2500);
+    if (yahooFx?.cur && yahooFx.cur > 800 && yahooFx.cur < 2500) {
+      const nowIso = new Date().toISOString();
+      return {
+        rate: Math.round(Number(yahooFx.cur) * 100) / 100,
+        source: 'Yahoo(KRW=X)',
+        providedIso: nowIso,
+        providedLabel: formatKstFromDate(nowIso)
+      };
+    }
     return null;
+  }
+
+  function applyLiveFxRate(liveFx) {
+    if (!state.data || !liveFx || liveFx <= 800 || liveFx >= 2500) return false;
+    const fx = state.data.fx;
+    const prevFx = fx.usdKrw || liveFx;
+    fx.usdKrw = liveFx;
+    if (prevFx > 0 && Math.abs(liveFx - prevFx) > 0.01) {
+      fx.changePct = Math.round(((liveFx - prevFx) / prevFx) * 10000) / 100;
+    }
+    fx.high52w = Math.max(fx.high52w, liveFx);
+    fx.low52w = Math.min(fx.low52w, liveFx);
+    const pct1Y = fx.high52w > fx.low52w ? Math.round(((liveFx - fx.low52w) / (fx.high52w - fx.low52w)) * 100) : fx.percentile1Y;
+    fx.percentile1Y = Math.max(1, Math.min(99, pct1Y));
+    fx.light = fx.percentile1Y <= 40 ? 'green' : fx.percentile1Y <= 70 ? 'yellow' : 'red';
+    fx.recommendation =
+      fx.light === 'green'
+        ? '1년 평균보다 낮아 분할 환전에 유리해요'
+        : fx.light === 'yellow'
+          ? '1년 중간 구간 · 정기 분할 환전이 적합해요'
+          : '1년 상단권 · 환율 부담이 커 소액 분할 권장';
+    if (Array.isArray(fx.history) && fx.history.length) {
+      fx.history[fx.history.length - 1] = { date: todayStr(), value: liveFx };
+    }
+    state.data.overview.fxSignal.light = fx.light;
+    state.data.overview.fxSignal.score = 100 - fx.percentile1Y;
+    state.data.overview.fxSignal.label = fx.light === 'green' ? '환전 유리' : fx.light === 'yellow' ? '분할 환전' : '환율 부담';
+    state.data.overview.fxSignal.summary = `1년 중 ${fx.percentile1Y <= 40 ? '싼 편' : fx.percentile1Y <= 70 ? '보통' : '비싼 편'} (하위 ${fx.percentile1Y}%)`;
+    return true;
   }
 
   async function fetchYahooLiveBrowser(symbol, timeoutMs = 3500) {
@@ -2722,47 +2794,40 @@
     }
   }
 
+  function isServerDataFresh(maxAgeMinutes = 90) {
+    const ts = state.data?.meta?.updatedAt ? new Date(state.data.meta.updatedAt).getTime() : 0;
+    if (!ts || Number.isNaN(ts)) return false;
+    return Date.now() - ts >= 0 && Date.now() - ts <= maxAgeMinutes * 60 * 1000;
+  }
+
   async function runBrowserLiveRefresh() {
     let fxUpdated = false;
+    let fxSource = '';
     let etfUpdatedCount = 0;
 
-    // 1단계 (1초 이내 즉시 반영): 실시간 원/달러 환율 + 현재 누른 시각 갱신
-    const liveFx = await fetchLiveUsdKrw();
-    if (liveFx && liveFx > 800 && liveFx < 2500) {
-      fxUpdated = true;
-      const fx = state.data.fx;
-      const prevFx = fx.usdKrw || liveFx;
-      fx.usdKrw = liveFx;
-      if (prevFx > 0 && Math.abs(liveFx - prevFx) > 0.01) {
-        fx.changePct = Math.round(((liveFx - prevFx) / prevFx) * 10000) / 100;
+    // 1단계: GitHub 15분 봇이 방금(90분 이내) 수집한 장중 실시간 KRW=X 환율이 있으면 유지, 오래된 경우에만 공개 환율 API로 보충
+    const serverFresh = isServerDataFresh(90) && state.data?.meta?.sourceMode === 'live';
+    if (!serverFresh) {
+      const liveFxRes = await fetchLiveUsdKrw();
+      if (liveFxRes && applyLiveFxRate(liveFxRes.rate)) {
+        fxUpdated = true;
+        fxSource = liveFxRes.source;
+        // 버튼을 누른 가짜 시각이 아니라, 환율 서버가 실제 산출·제공한 시각만 정직하게 반영
+        if (liveFxRes.providedLabel) state.data.meta.fxProvidedLabel = liveFxRes.providedLabel;
+        if (liveFxRes.providedIso) {
+          const prevTs = state.data.meta.updatedAt ? new Date(state.data.meta.updatedAt).getTime() : 0;
+          const nextTs = new Date(liveFxRes.providedIso).getTime();
+          if (!Number.isNaN(nextTs) && nextTs > prevTs) {
+            state.data.meta.updatedAt = liveFxRes.providedIso;
+            state.data.meta.updatedLabel = `자료 ${formatKstFromDate(liveFxRes.providedIso)} · 15분 자동`;
+          }
+        }
       }
-      fx.high52w = Math.max(fx.high52w, liveFx);
-      fx.low52w = Math.min(fx.low52w, liveFx);
-      const pct1Y = fx.high52w > fx.low52w ? Math.round(((liveFx - fx.low52w) / (fx.high52w - fx.low52w)) * 100) : fx.percentile1Y;
-      fx.percentile1Y = Math.max(1, Math.min(99, pct1Y));
-      fx.light = fx.percentile1Y <= 40 ? 'green' : fx.percentile1Y <= 70 ? 'yellow' : 'red';
-      fx.recommendation =
-        fx.light === 'green'
-          ? '1년 평균보다 낮아 분할 환전에 유리해요'
-          : fx.light === 'yellow'
-            ? '1년 중간 구간 · 정기 분할 환전이 적합해요'
-            : '1년 상단권 · 환율 부담이 커 소액 분할 권장';
-      if (Array.isArray(fx.history) && fx.history.length) {
-        fx.history[fx.history.length - 1] = { date: todayStr(), value: liveFx };
-      }
-      state.data.overview.fxSignal.light = fx.light;
-      state.data.overview.fxSignal.score = 100 - fx.percentile1Y;
-      state.data.overview.fxSignal.label = fx.light === 'green' ? '환전 유리' : fx.light === 'yellow' ? '분할 환전' : '환율 부담';
-      state.data.overview.fxSignal.summary = `1년 중 ${fx.percentile1Y <= 40 ? '싼 편' : fx.percentile1Y <= 70 ? '보통' : '비싼 편'} (하위 ${fx.percentile1Y}%)`;
     }
 
-    const nowKst = formatNowKst();
-    state.data.meta.updatedAt = nowKst.iso;
-    state.data.meta.updatedLabel = nowKst.label;
-    state.data.meta.sourceMode = fxUpdated ? 'live' : state.data.meta.sourceMode;
     renderAllTabs();
 
-    // 2단계 (빠른 프로브 1회 후 전체 병렬 조회 — 최대 5초 컷, 무한대기 방지!)
+    // 2단계 (빠른 프로브 1회 후 전체 병렬 조회 — 실제 시세를 받아온 경우에만 기준 시각 갱신)
     const allLiveTargets = getAllAssets();
     const firstEtf = allLiveTargets[0];
     const probe = firstEtf ? await fetchYahooLiveBrowser(firstEtf.ticker, 3000) : null;
@@ -2790,6 +2855,9 @@
           etfUpdatedCount++;
         }
       });
+      const nowKst = formatNowKst();
+      state.data.meta.updatedAt = nowKst.iso;
+      state.data.meta.updatedLabel = `자료 ${formatKstFromDate(nowKst.iso)} · 15분 자동`;
       state.data.meta.sourceMode = 'live';
       renderAllTabs();
     }
@@ -2798,29 +2866,143 @@
       localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify(state.data));
     } catch {}
 
-    return { fxUpdated, etfUpdatedCount, label: nowKst.label };
+    const realLabel = formatKstFromDate(state.data.meta.updatedAt) || state.data.meta.updatedLabel;
+    return { fxUpdated, fxSource, etfUpdatedCount, label: realLabel };
+  }
+
+  let isRefreshingNow = false;
+  let lastAutoFxTs = 0;
+
+  async function refreshLiveFxSilently() {
+    if (!state.data || isRefreshingNow) return;
+    if (Date.now() - lastAutoFxTs < 60000) return;
+    if (isServerDataFresh(90) && state.data?.meta?.sourceMode === 'live') return;
+    lastAutoFxTs = Date.now();
+    const liveFxRes = await fetchLiveUsdKrw();
+    if (liveFxRes && applyLiveFxRate(liveFxRes.rate)) {
+      if (liveFxRes.providedLabel) state.data.meta.fxProvidedLabel = liveFxRes.providedLabel;
+      if (liveFxRes.providedIso) {
+        const prevTs = state.data.meta.updatedAt ? new Date(state.data.meta.updatedAt).getTime() : 0;
+        const nextTs = new Date(liveFxRes.providedIso).getTime();
+        if (!Number.isNaN(nextTs) && nextTs > prevTs) {
+          state.data.meta.updatedAt = liveFxRes.providedIso;
+          state.data.meta.updatedLabel = `자료 ${formatKstFromDate(liveFxRes.providedIso)} · 15분 자동`;
+        }
+      }
+      renderAllTabs();
+      try { localStorage.setItem(LIVE_CACHE_KEY, JSON.stringify(state.data)); } catch {}
+    }
   }
 
   async function handleRefresh() {
+    if (isRefreshingNow) return;
+    isRefreshingNow = true;
     const btn = $('#refreshBtn');
     btn.classList.add('spinning');
     btn.disabled = true;
-    showToast('지금 시각 기준으로 실시간 최신화 중...');
+    showToast('최신 제공 자료를 확인하는 중...');
 
     try {
       await loadData(true);
       const r = await runBrowserLiveRefresh();
+      lastAutoFxTs = Date.now();
       if (r.etfUpdatedCount > 0) {
-        showToast(`실시간 최신화 완료! (환율 + ETF ${r.etfUpdatedCount}종 · ${r.label})`);
+        showToast(`최신 시세 반영 완료 (제공 ${r.label} · 종목 ${r.etfUpdatedCount}종)`);
       } else if (r.fxUpdated) {
-        showToast(`실시간 환율·시각 반영 완료! (${r.label})`);
+        showToast(`최신 자료 확인 완료 (환율 ${state.data.fx.usdKrw.toLocaleString('ko-KR')}원 · 제공 ${r.label})`);
       } else {
-        showToast(`최신 데이터 확인 완료 (${r.label})`);
+        showToast(`현재 최신 자료입니다 (제공 ${r.label} · 15분 자동)`);
       }
     } finally {
+      isRefreshingNow = false;
       btn.classList.remove('spinning');
       btn.disabled = false;
     }
+  }
+
+  // ==================== 모바일 당겨서 최신화 (Pull-to-Refresh) ====================
+  function initPullToRefresh() {
+    const ptr = $('#ptrIndicator');
+    const ptrText = $('#ptrText');
+    if (!ptr || !ptrText) return;
+
+    let startY = 0;
+    let startX = 0;
+    let pulling = false;
+    let pullDist = 0;
+    const THRESHOLD = 64;
+    const MAX_PULL = 110;
+
+    const resetPtr = () => {
+      pulling = false;
+      pullDist = 0;
+      ptr.classList.remove('pulling', 'visible', 'ready', 'refreshing');
+      ptr.style.transform = '';
+      ptrText.textContent = '아래로 당겨 최신화';
+    };
+
+    const hasOpenModal = () => Boolean($('.modal-backdrop.open'));
+
+    document.addEventListener(
+      'touchstart',
+      (e) => {
+        if (isRefreshingNow || hasOpenModal() || window.scrollY > 2 || e.touches.length !== 1) return;
+        startY = e.touches[0].clientY;
+        startX = e.touches[0].clientX;
+        pulling = true;
+        pullDist = 0;
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!pulling || isRefreshingNow || hasOpenModal()) return;
+        if (window.scrollY > 2) {
+          resetPtr();
+          return;
+        }
+        const dy = e.touches[0].clientY - startY;
+        const dx = Math.abs(e.touches[0].clientX - startX);
+        if (dy <= 6 || dx > dy) {
+          if (pullDist > 0) resetPtr();
+          return;
+        }
+        pullDist = Math.min(MAX_PULL, dy * 0.55);
+        ptr.classList.add('pulling', 'visible');
+        ptr.style.transform = `translateY(${Math.round(pullDist - 24)}px)`;
+        if (pullDist >= THRESHOLD) {
+          ptr.classList.add('ready');
+          ptrText.textContent = '놓으면 바로 최신화';
+        } else {
+          ptr.classList.remove('ready');
+          ptrText.textContent = '아래로 당겨 최신화';
+        }
+      },
+      { passive: true }
+    );
+
+    const onTouchEnd = async () => {
+      if (!pulling) return;
+      pulling = false;
+      if (pullDist >= THRESHOLD && !isRefreshingNow) {
+        ptr.classList.remove('pulling', 'ready');
+        ptr.classList.add('visible', 'refreshing');
+        ptr.style.transform = 'translateY(14px)';
+        ptrText.textContent = '실시간 최신화 중...';
+        try {
+          await handleRefresh();
+        } finally {
+          resetPtr();
+        }
+      } else {
+        resetPtr();
+      }
+    };
+
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    document.addEventListener('touchcancel', resetPtr, { passive: true });
   }
 
   function updateQrDisplay(urlText) {
@@ -3045,5 +3227,14 @@
 
   initTheme();
   bindEvents();
-  loadData();
+  initPullToRefresh();
+  loadData().then(() => {
+    refreshLiveFxSilently();
+  });
+  setInterval(() => {
+    if (document.visibilityState === 'visible') refreshLiveFxSilently();
+  }, 180000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshLiveFxSilently();
+  });
 })();
